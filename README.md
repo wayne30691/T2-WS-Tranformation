@@ -17,19 +17,8 @@ T2-WS-Transformation/
 
 ## Installation & Execution
 
-Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-Launch the application:
-
-```bash
-streamlit run streamlit_app.py
-```
-
-The app is available at `[http://localhost:8501](https://t2-ws-tranformation-php7ldvgfhtvkgpsaanptq.streamlit.app/)`.
+All Python packages required for execution are listed in `requirements.txt`.  
+The application runs with Streamlit at `https://t2-ws-tranformation-php7ldvgfhtvkgpsaanptq.streamlit.app/`.
 
 ---
 
@@ -44,8 +33,17 @@ The app is available at `[http://localhost:8501](https://t2-ws-tranformation-php
 
 ## Data Flow Overview
 
-- **Raw Data** (Excel, CSV, SharePoint)  
-  ⮕ **Preprocessing Layer** (Python scripts / Power Query)  
-  ⮕ **Snapshot Files** (staged for refresh)  
-  ⮕ **Visualization** (Streamlit or Power BI dashboards)  
-  ⮕ **Governance** (role-based access control aligned with HQ policy)
+The application processes a combination of manually prepared inventory and sales reports, along with mapping tables retrieved from Salesforce via API. The transformation flow is structured as follows:
+
+- **Input Layer**  
+  Prepared Excel or CSV files containing sell-in / sell-out / stock-taking data  
+  +  
+  Mapping tables from Salesforce, connected via Power Query with API
+
+- **Transformation Layer**  
+  Python scripts perform data validation, cleaning, and merging with Salesforce mappings
+
+- **Output Layer**  
+  Processed results are exported as structured CSV files, which serve as clean inputs for enterprise reporting tool in Pernod Ricard Taiwan
+
+
