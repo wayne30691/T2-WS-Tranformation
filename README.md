@@ -1,19 +1,51 @@
-# 🎈 Blank app template
+# T2‑WS Transformation
 
-A simple Streamlit app template for you to modify!
+A streamlined Python + Streamlit solution for data transformation and visualization, designed to support structured reporting across trade channels.
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://blank-app-template.streamlit.app/)
+## Project Structure
 
-### How to run it on your own machine
+```
+T2-WS-Transformation/
+├── streamlit_app.py           # Main application entry point
+├── requirements.txt           # Python dependencies
+├── assets/                    # Screenshots and visuals
+├── .github/                   # GitHub workflows
+├── .devcontainer/             # Dev container setup (optional)
+├── tests/                     # Unit tests (if any)
+└── README.md
+```
 
-1. Install the requirements
+## Installation & Execution
 
-   ```
-   $ pip install -r requirements.txt
-   ```
+Install dependencies:
 
-2. Run the app
+```bash
+pip install -r requirements.txt
+```
 
-   ```
-   $ streamlit run streamlit_app.py
-   ```
+Launch the application:
+
+```bash
+streamlit run streamlit_app.py
+```
+
+The app is available at `[http://localhost:8501](https://t2-ws-tranformation-php7ldvgfhtvkgpsaanptq.streamlit.app/)`.
+
+---
+
+## Features
+
+- Clean UI built with **Streamlit** for quick insight delivery
+- Modular Python architecture for **data preprocessing & transformation**
+- Snapshot logic to prevent refresh failures caused by live-edited Excel files
+- Designed to complement enterprise reporting tool in Pernod Ricard Taiwan
+
+---
+
+## Data Flow Overview
+
+- **Raw Data** (Excel, CSV, SharePoint)  
+  ⮕ **Preprocessing Layer** (Python scripts / Power Query)  
+  ⮕ **Snapshot Files** (staged for refresh)  
+  ⮕ **Visualization** (Streamlit or Power BI dashboards)  
+  ⮕ **Governance** (role-based access control aligned with HQ policy)
