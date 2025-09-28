@@ -18,7 +18,7 @@ T2-WS-Transformation/
 ## Installation & Execution
 
 All Python packages required for execution are listed in `requirements.txt`.  
-The application runs with Streamlit at `https://t2-ws-tranformation-php7ldvgfhtvkgpsaanptq.streamlit.app/`.
+The application runs with Streamlit at [T2 WS Transformation App](https://t2-ws-tranformation-php7ldvgfhtvkgpsaanptq.streamlit.app/).
 
 ---
 
