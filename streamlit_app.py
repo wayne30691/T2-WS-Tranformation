@@ -539,12 +539,16 @@ elif transformation_choice == "30010059 誠邦有限公司":
         import pandas as pd
 
         # --- helper: remove trailing .0 and invisible spaces ---
+        # 20260413 Wayne Wang: Fix 30010059 clean_code pyarrow regex issue by forcing Python string backend
         def clean_code(series: pd.Series) -> pd.Series:
+            s = pd.Series(series, copy=False).astype("string[python]").fillna("")
             return (
-                series.astype(str)
-                      .str.replace(r"[\u00A0\u2007\u202F\u3000]", "", regex=True)  # NBSP/thin/full-width spaces
-                      .str.strip()
-                      .str.replace(r"\.0+$", "", regex=True)  # drop ONLY trailing .0/.00...
+                s.str.replace("\u00A0", "", regex=False)
+                 .str.replace("\u2007", "", regex=False)
+                 .str.replace("\u202F", "", regex=False)
+                 .str.replace("\u3000", "", regex=False)
+                 .str.strip()
+                 .str.replace(r"\.0+$", "", regex=True)
             )
 
         # ---------- read raw ----------
