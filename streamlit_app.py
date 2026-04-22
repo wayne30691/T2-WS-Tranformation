@@ -3,6 +3,10 @@ import pandas as pd
 import re
 import os, io
 
+# 20260422 Wayne Wang: Updated mapping logic across all customer branches to use composite keys
+# [Customer/Product Code]|[Customer Group Code] instead of drop_duplicates to prevent unmapped records
+# Added customer group filtering to ensure only relevant mappings are used per branch
+
 # ---------- Persist across reruns (optional) ----------
 _PERSIST_PATH = "data/mapping.xlsx"
 
@@ -104,19 +108,26 @@ if transformation_choice == "30010085 宏酒樽 (夜)":
             
             df_transformed["Date"] = pd.to_datetime(df_transformed["Date"]).dt.strftime('%Y%m%d')
             
-            # Map product codes
+            # ✅ Map product codes using Composite Key (Product + Customer)
             df_sku_mapping = dfs_mapping["SKU Mapping"]
-            df_sku_mapping = df_sku_mapping[["ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c"]].drop_duplicates(subset="ASI_CRM_Offtake_Product__c")
+            df_sku_mapping = df_sku_mapping[["ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c", "ASI_CRM_Mapping_Cust_Code__c"]]
+            df_sku_mapping['Prod_CompositeKey'] = (
+                df_sku_mapping['ASI_CRM_Offtake_Product__c'].astype(str) + '|' + 
+                df_sku_mapping['ASI_CRM_Mapping_Cust_Code__c'].astype(str)
+            )
+            
+            df_transformed['Prod_CompositeKey'] = (
+                df_transformed['Product Code'].astype(str) + '|' + '30010085'
+            )
             
             df_transformed = df_transformed.merge(
-                df_sku_mapping,
-                left_on="Product Code",
-                right_on="ASI_CRM_Offtake_Product__c",
-                how="left"
+                df_sku_mapping[['Prod_CompositeKey', 'ASI_CRM_SKU_Code__c']],
+                on='Prod_CompositeKey',
+                how='left'
             )
             
             df_transformed.rename(columns={"ASI_CRM_SKU_Code__c": "SKU Code"}, inplace=True)
-            df_transformed.drop(columns=["ASI_CRM_Offtake_Product__c"], inplace=True)
+            df_transformed.drop(columns=['Prod_CompositeKey'], inplace=True)
             
             # ✅ Fix Outlet Code Mapping Issue ✅
             df_transformed["Outlet Code"] = df_transformed["Outlet Code"].astype(str)
@@ -128,23 +139,28 @@ if transformation_choice == "30010085 宏酒樽 (夜)":
                 "2024-07-02 00:00:00": "07-02"
             })
             
-            # ✅🔄 Updated Customer Mapping with 30010085 Filter
+            # ✅ Customer Mapping using Composite Key (Customer + Customer)
             df_customer_mapping = dfs_mapping["Customer Mapping"]
             df_customer_mapping = df_customer_mapping[
                 df_customer_mapping["ASI_CRM_Mapping_Cust_No__c"] == 30010085
-            ][["ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c"]].drop_duplicates(
-                subset="ASI_CRM_Offtake_Customer_No__c"
+            ][["ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", "ASI_CRM_Mapping_Cust_No__c"]]
+            df_customer_mapping['Cust_CompositeKey'] = (
+                df_customer_mapping['ASI_CRM_Offtake_Customer_No__c'].astype(str) + '|' + 
+                df_customer_mapping['ASI_CRM_Mapping_Cust_No__c'].astype(str)
+            )
+            
+            df_transformed['Cust_CompositeKey'] = (
+                df_transformed['Outlet Code'].astype(str) + '|' + '30010085'
             )
             
             df_transformed = df_transformed.merge(
-                df_customer_mapping,
-                left_on="Outlet Code",
-                right_on="ASI_CRM_Offtake_Customer_No__c",
-                how="left"
+                df_customer_mapping[['Cust_CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c']],
+                on='Cust_CompositeKey',
+                how='left'
             )
             
             df_transformed.rename(columns={"ASI_CRM_JDE_Cust_No_Formula__c": "PRT Customer Code"}, inplace=True)
-            df_transformed.drop(columns=["ASI_CRM_Offtake_Customer_No__c", "Outlet Code"], inplace=True)
+            df_transformed.drop(columns=['Cust_CompositeKey', "Outlet Code"], inplace=True)
             
             # Reorder the columns
             column_order = ["Column1", "Column2", "Column3", "Column4", "PRT Customer Code", "Outlet Name", "Date", "SKU Code", "Product Code", "Product Name", "Number of Bottles"]
@@ -187,23 +203,31 @@ elif transformation_choice == "30010203 宏酒樽 (日)":
             
             df_transformed["Date"] = pd.to_datetime(df_transformed["Date"]).dt.strftime('%Y%m%d')
             
-            # Map product codes
+            # ✅ Map product codes using Composite Key (Product + Customer)
             df_sku_mapping = dfs_mapping["SKU Mapping"]
-            df_sku_mapping = df_sku_mapping[["ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c"]].drop_duplicates(subset="ASI_CRM_Offtake_Product__c")
+            df_sku_mapping = df_sku_mapping[["ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c", "ASI_CRM_Mapping_Cust_Code__c"]]
 
             # Clean and normalize SKU columns
             df_transformed["Product Code"] = df_transformed["Product Code"].astype(str).str.strip().str.upper()
             df_sku_mapping["ASI_CRM_Offtake_Product__c"] = df_sku_mapping["ASI_CRM_Offtake_Product__c"].astype(str).str.strip().str.upper()
+            
+            df_sku_mapping['Prod_CompositeKey'] = (
+                df_sku_mapping['ASI_CRM_Offtake_Product__c'].astype(str) + '|' + 
+                df_sku_mapping['ASI_CRM_Mapping_Cust_Code__c'].astype(str)
+            )
+            
+            df_transformed['Prod_CompositeKey'] = (
+                df_transformed['Product Code'].astype(str) + '|' + '30010203'
+            )
 
             df_transformed = df_transformed.merge(
-                df_sku_mapping,
-                left_on="Product Code",
-                right_on="ASI_CRM_Offtake_Product__c",
-                how="left"
+                df_sku_mapping[['Prod_CompositeKey', 'ASI_CRM_SKU_Code__c']],
+                on='Prod_CompositeKey',
+                how='left'
             )
             
             df_transformed.rename(columns={"ASI_CRM_SKU_Code__c": "SKU Code"}, inplace=True)
-            df_transformed.drop(columns=["ASI_CRM_Offtake_Product__c"], inplace=True)
+            df_transformed.drop(columns=['Prod_CompositeKey'], inplace=True)
             
             # ✅ Fix Outlet Code Mapping Issue ✅
             df_transformed["Outlet Code"] = df_transformed["Outlet Code"].astype(str)
@@ -215,23 +239,28 @@ elif transformation_choice == "30010203 宏酒樽 (日)":
                 "2024-07-02 00:00:00": "07-02"
             })
             
-            # ✅🔄 Updated Customer Mapping with 30010085 Filter
+            # ✅ Customer Mapping using Composite Key (Customer + Customer)
             df_customer_mapping = dfs_mapping["Customer Mapping"]
             df_customer_mapping = df_customer_mapping[
                 df_customer_mapping["ASI_CRM_Mapping_Cust_No__c"] == 30010203
-            ][["ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c"]].drop_duplicates(
-                subset="ASI_CRM_Offtake_Customer_No__c"
+            ][["ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", "ASI_CRM_Mapping_Cust_No__c"]]
+            df_customer_mapping['Cust_CompositeKey'] = (
+                df_customer_mapping['ASI_CRM_Offtake_Customer_No__c'].astype(str) + '|' + 
+                df_customer_mapping['ASI_CRM_Mapping_Cust_No__c'].astype(str)
+            )
+            
+            df_transformed['Cust_CompositeKey'] = (
+                df_transformed['Outlet Code'].astype(str) + '|' + '30010203'
             )
             
             df_transformed = df_transformed.merge(
-                df_customer_mapping,
-                left_on="Outlet Code",
-                right_on="ASI_CRM_Offtake_Customer_No__c",
-                how="left"
+                df_customer_mapping[['Cust_CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c']],
+                on='Cust_CompositeKey',
+                how='left'
             )
             
             df_transformed.rename(columns={"ASI_CRM_JDE_Cust_No_Formula__c": "PRT Customer Code"}, inplace=True)
-            df_transformed.drop(columns=["ASI_CRM_Offtake_Customer_No__c", "Outlet Code"], inplace=True)
+            df_transformed.drop(columns=['Cust_CompositeKey', "Outlet Code"], inplace=True)
             
             # Reorder the columns
             column_order = ["Column1", "Column2", "Column3", "Column4", "PRT Customer Code", "Outlet Name", "Date", "SKU Code", "Product Code", "Product Name", "Number of Bottles"]
@@ -301,35 +330,43 @@ elif transformation_choice == "30010061 向日葵":
 
         df_customer = dfs_mapping["Customer Mapping"]
         df_customer = df_customer[[
-            "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c"
-        ]].drop_duplicates(subset="ASI_CRM_Offtake_Customer_No__c")
+            "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", "ASI_CRM_Mapping_Cust_No__c"
+        ]]
+        df_customer['Cust_CompositeKey'] = df_customer['ASI_CRM_Offtake_Customer_No__c'].astype(str) + '|' + df_customer['ASI_CRM_Mapping_Cust_No__c'].astype(str)
+        df_customer = df_customer.drop_duplicates(subset="Cust_CompositeKey")
+
+        result_df['Cust_CompositeKey'] = result_df['Customer Code'].astype(str) + '|' + '30010061'
 
         result_df = result_df.merge(
-            df_customer,
-            left_on="Customer Code",
-            right_on="ASI_CRM_Offtake_Customer_No__c",
+            df_customer[['Cust_CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c']],
+            left_on='Cust_CompositeKey',
+            right_on='Cust_CompositeKey',
             how="left"
         )
 
         result_df["Customer Code"] = result_df["ASI_CRM_JDE_Cust_No_Formula__c"].astype(str).str.strip().str.replace(r"\.0$", "", regex=True)
-        result_df.drop(columns=["ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c"], inplace=True)
+        result_df.drop(columns=['Cust_CompositeKey', "ASI_CRM_JDE_Cust_No_Formula__c"], inplace=True)
 
         # --- ✅ SKU MAPPING ---
         df_sku = dfs_mapping["SKU Mapping"]
         df_sku = df_sku[[
-            "ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c"
-        ]].drop_duplicates(subset="ASI_CRM_Offtake_Product__c")
+            "ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c", "ASI_CRM_Mapping_Cust_Code__c"
+        ]]
+        df_sku['Prod_CompositeKey'] = df_sku['ASI_CRM_Offtake_Product__c'].astype(str) + '|' + df_sku['ASI_CRM_Mapping_Cust_Code__c'].astype(str)
+        df_sku = df_sku.drop_duplicates(subset="Prod_CompositeKey")
+
+        result_df['Prod_CompositeKey'] = result_df['Product Code'].astype(str) + '|' + '30010061'
 
         result_df = result_df.merge(
-            df_sku,
-            left_on="Product Code",
-            right_on="ASI_CRM_Offtake_Product__c",
+            df_sku[['Prod_CompositeKey', 'ASI_CRM_SKU_Code__c']],
+            left_on='Prod_CompositeKey',
+            right_on='Prod_CompositeKey',
             how="left"
         )
 
         product_index = result_df.columns.get_loc("Product Code")
         result_df.insert(product_index, "PRT Product Code", result_df["ASI_CRM_SKU_Code__c"].astype(str).str.strip())
-        result_df.drop(columns=["ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c"], inplace=True)
+        result_df.drop(columns=['Prod_CompositeKey', "ASI_CRM_SKU_Code__c"], inplace=True)
 
         # Preview data in Streamlit
         st.write("✅ Processed Data Preview:")
@@ -390,34 +427,42 @@ elif transformation_choice == "30010010 酒倉盛豐行":
 
         mapping_customer = pd.read_excel(mapping_file, sheet_name="Customer Mapping")
         mapping_customer = mapping_customer[[
-            "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c"
-        ]].drop_duplicates(subset="ASI_CRM_Offtake_Customer_No__c")
+            "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", "ASI_CRM_Mapping_Cust_No__c"
+        ]]
+        mapping_customer['Cust_CompositeKey'] = mapping_customer['ASI_CRM_Offtake_Customer_No__c'].astype(str) + '|' + mapping_customer['ASI_CRM_Mapping_Cust_No__c'].astype(str)
+        mapping_customer = mapping_customer.drop_duplicates(subset="Cust_CompositeKey")
+
+        df_cleaned['Cust_CompositeKey'] = df_cleaned['Customer Code'].astype(str) + '|' + '30010010'
 
         df_cleaned = df_cleaned.merge(
-            mapping_customer,
-            left_on="Customer Code",
-            right_on="ASI_CRM_Offtake_Customer_No__c",
+            mapping_customer[['Cust_CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c']],
+            left_on='Cust_CompositeKey',
+            right_on='Cust_CompositeKey',
             how="left"
         )
 
         df_cleaned["Customer Code"] = df_cleaned["ASI_CRM_JDE_Cust_No_Formula__c"].astype(str).str.strip().str.replace(r"\.0$", "", regex=True)
-        df_cleaned.drop(columns=["ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c"], inplace=True)
+        df_cleaned.drop(columns=['Cust_CompositeKey', "ASI_CRM_JDE_Cust_No_Formula__c"], inplace=True)
 
         mapping_sku = pd.read_excel(mapping_file, sheet_name="SKU Mapping")
         mapping_sku = mapping_sku[[
-            "ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c"
-        ]].drop_duplicates(subset="ASI_CRM_Offtake_Product__c")
+            "ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c", "ASI_CRM_Mapping_Cust_Code__c"
+        ]]
+        mapping_sku['Prod_CompositeKey'] = mapping_sku['ASI_CRM_Offtake_Product__c'].astype(str) + '|' + mapping_sku['ASI_CRM_Mapping_Cust_Code__c'].astype(str)
+        mapping_sku = mapping_sku.drop_duplicates(subset="Prod_CompositeKey")
+
+        df_cleaned['Prod_CompositeKey'] = df_cleaned['Product Code'].astype(str) + '|' + '30010010'
 
         df_cleaned = df_cleaned.merge(
-            mapping_sku,
-            left_on="Product Code",
-            right_on="ASI_CRM_Offtake_Product__c",
+            mapping_sku[['Prod_CompositeKey', 'ASI_CRM_SKU_Code__c']],
+            left_on='Prod_CompositeKey',
+            right_on='Prod_CompositeKey',
             how="left"
         )
 
         product_code_index = df_cleaned.columns.get_loc("Product Code")
         df_cleaned.insert(product_code_index, "PRT Product Code", df_cleaned["ASI_CRM_SKU_Code__c"].astype(str).str.strip())
-        df_cleaned.drop(columns=["ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c"], inplace=True)
+        df_cleaned.drop(columns=['Prod_CompositeKey', "ASI_CRM_SKU_Code__c"], inplace=True)
 
         df_cleaned.insert(0, "Column1", "INV")
         df_cleaned.insert(1, "Column2", "U")
@@ -485,35 +530,43 @@ elif transformation_choice == "30010013 酒田":
         # Load customer mapping
         mapping_customer = pd.read_excel(mapping_file, sheet_name="Customer Mapping")
         mapping_customer = mapping_customer[[
-            "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c"
-        ]].drop_duplicates(subset="ASI_CRM_Offtake_Customer_No__c")
+            "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", "ASI_CRM_Mapping_Cust_No__c"
+        ]]
+        mapping_customer['Cust_CompositeKey'] = mapping_customer['ASI_CRM_Offtake_Customer_No__c'].astype(str) + '|' + mapping_customer['ASI_CRM_Mapping_Cust_No__c'].astype(str)
+        mapping_customer = mapping_customer.drop_duplicates(subset="Cust_CompositeKey")
+
+        df_cleaned['Cust_CompositeKey'] = df_cleaned['Customer Code'].astype(str) + '|' + '30010013'
 
         df_cleaned = df_cleaned.merge(
-            mapping_customer,
-            left_on="Customer Code",
-            right_on="ASI_CRM_Offtake_Customer_No__c",
+            mapping_customer[['Cust_CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c']],
+            left_on='Cust_CompositeKey',
+            right_on='Cust_CompositeKey',
             how="left"
         )
 
         df_cleaned["Customer Code"] = df_cleaned["ASI_CRM_JDE_Cust_No_Formula__c"].astype(str).str.strip().str.replace(r"\.0$", "", regex=True)
-        df_cleaned.drop(columns=["ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c"], inplace=True)
+        df_cleaned.drop(columns=['Cust_CompositeKey', "ASI_CRM_JDE_Cust_No_Formula__c"], inplace=True)
 
         # Load SKU mapping
         mapping_sku = pd.read_excel(mapping_file, sheet_name="SKU Mapping")
         mapping_sku = mapping_sku[[
-            "ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c"
-        ]].drop_duplicates(subset="ASI_CRM_Offtake_Product__c")
+            "ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c", "ASI_CRM_Mapping_Cust_Code__c"
+        ]]
+        mapping_sku['Prod_CompositeKey'] = mapping_sku['ASI_CRM_Offtake_Product__c'].astype(str) + '|' + mapping_sku['ASI_CRM_Mapping_Cust_Code__c'].astype(str)
+        mapping_sku = mapping_sku.drop_duplicates(subset="Prod_CompositeKey")
+
+        df_cleaned['Prod_CompositeKey'] = df_cleaned['Product Code'].astype(str) + '|' + '30010013'
 
         df_cleaned = df_cleaned.merge(
-            mapping_sku,
-            left_on="Product Code",
-            right_on="ASI_CRM_Offtake_Product__c",
+            mapping_sku[['Prod_CompositeKey', 'ASI_CRM_SKU_Code__c']],
+            left_on='Prod_CompositeKey',
+            right_on='Prod_CompositeKey',
             how="left"
         )
 
         product_code_index = df_cleaned.columns.get_loc("Product Code")
         df_cleaned.insert(product_code_index, "PRT Product Code", df_cleaned["ASI_CRM_SKU_Code__c"].astype(str).str.strip())
-        df_cleaned.drop(columns=["ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c"], inplace=True)
+        df_cleaned.drop(columns=['Prod_CompositeKey', "ASI_CRM_SKU_Code__c"], inplace=True)
 
         # Insert fixed identifier columns
         df_cleaned.insert(0, "Column1", "INV")
@@ -617,36 +670,50 @@ elif transformation_choice == "30010059 誠邦有限公司":
 
         # ---------- load mappings ----------
         xlsx = pd.ExcelFile(mapping_file)
-        dfs_mapping = {sheet: pd.read_excel(mapping_file, sheet_name=sheet) for sheet in xlsx.sheet_names}
+        dfs_mapping = {sheet: pd.read_excel(mapping_file, sheet_name=sheet, dtype=str) for sheet in xlsx.sheet_names}
 
-        # Customer mapping: MERGE -> REWRITE Customer Code -> DROP extras
-        df_customer = dfs_mapping["Customer Mapping"][[
-            "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c"
-        ]].drop_duplicates(subset="ASI_CRM_Offtake_Customer_No__c")
+        # ✅ Customer mapping using Composite Key (Customer + Customer_No) - filter for 30010059 only
+        df_customer_all = dfs_mapping["Customer Mapping"]
+        df_customer = df_customer_all[df_customer_all["ASI_CRM_Mapping_Cust_No__c"].astype(str).str.replace(r"\.0$", "", regex=True) == "30010059"].copy()
+        
+        df_customer['Cust_CompositeKey'] = (
+            df_customer['ASI_CRM_Offtake_Customer_No__c'].astype(str) + '|' + 
+            df_customer['ASI_CRM_Mapping_Cust_No__c'].astype(str)
+        )
+        
+        df_cleaned['Cust_CompositeKey'] = (
+            df_cleaned['Customer Code'].astype(str) + '|' + '30010059'
+        )
 
         df_cleaned = df_cleaned.merge(
-            df_customer,
-            left_on="Customer Code",
-            right_on="ASI_CRM_Offtake_Customer_No__c",
-            how="left"
+            df_customer[['Cust_CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c']],
+            on='Cust_CompositeKey',
+            how='left'
         )
 
         df_cleaned["Customer Code"] = clean_code(df_cleaned["ASI_CRM_JDE_Cust_No_Formula__c"])
         df_cleaned.drop(
-            columns=["ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c"],
+            columns=['Cust_CompositeKey', "ASI_CRM_JDE_Cust_No_Formula__c"],
             inplace=True
         )
 
-        # SKU mapping
-        df_sku_mapping = dfs_mapping["SKU Mapping"][[
-            "ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c"
-        ]].drop_duplicates(subset="ASI_CRM_Offtake_Product__c")
+        # ✅ SKU mapping using Composite Key (Product + Customer_Code) - filter for 30010059 only
+        df_sku_mapping_all = dfs_mapping["SKU Mapping"]
+        df_sku_mapping = df_sku_mapping_all[df_sku_mapping_all["ASI_CRM_Mapping_Cust_Code__c"].astype(str).str.replace(r"\.0$", "", regex=True) == "30010059"].copy()
+        
+        df_sku_mapping['Prod_CompositeKey'] = (
+            df_sku_mapping['ASI_CRM_Offtake_Product__c'].astype(str) + '|' + 
+            df_sku_mapping['ASI_CRM_Mapping_Cust_Code__c'].astype(str)
+        )
+        
+        df_cleaned['Prod_CompositeKey'] = (
+            df_cleaned['Product Code'].astype(str) + '|' + '30010059'
+        )
 
         df_cleaned = df_cleaned.merge(
-            df_sku_mapping,
-            left_on="Product Code",
-            right_on="ASI_CRM_Offtake_Product__c",
-            how="left"
+            df_sku_mapping[['Prod_CompositeKey', 'ASI_CRM_SKU_Code__c']],
+            on='Prod_CompositeKey',
+            how='left'
         )
 
         product_index = df_cleaned.columns.get_loc("Product Code")
@@ -655,7 +722,7 @@ elif transformation_choice == "30010059 誠邦有限公司":
             "PRT Product Code",
             clean_code(df_cleaned["ASI_CRM_SKU_Code__c"])
         )
-        df_cleaned.drop(columns=["ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c"], inplace=True)
+        df_cleaned.drop(columns=['Prod_CompositeKey', "ASI_CRM_SKU_Code__c"], inplace=True)
 
         # ---------- fixed columns + final ----------
         fixed_df = pd.DataFrame({
@@ -752,38 +819,46 @@ elif transformation_choice == "30010315 圳程":
             for sheet in pd.ExcelFile(mapping_file).sheet_names
         }
 
-        # Customer mapping
+        # Customer mapping using Composite Key
         df_customer = dfs_mapping["Customer Mapping"]
         df_customer = df_customer[[
-            "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c"
-        ]].drop_duplicates(subset="ASI_CRM_Offtake_Customer_No__c")
+            "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", "ASI_CRM_Mapping_Cust_No__c"
+        ]]
+        df_customer['CompositeKey'] = df_customer['ASI_CRM_Offtake_Customer_No__c'].astype(str) + '|' + df_customer['ASI_CRM_Mapping_Cust_No__c'].astype(str)
+        df_customer = df_customer.drop_duplicates(subset=['CompositeKey'])
+
+        df_transformed['Cust_CompositeKey'] = df_transformed['Customer Code'].astype(str) + '|' + '30010315'
 
         df_transformed = df_transformed.merge(
-            df_customer,
-            left_on="Customer Code",
-            right_on="ASI_CRM_Offtake_Customer_No__c",
-            how="left"
+            df_customer[['CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c']],
+            left_on='Cust_CompositeKey',
+            right_on='CompositeKey',
+            how='left'
         )
 
         df_transformed["Customer Code"] = df_transformed["ASI_CRM_JDE_Cust_No_Formula__c"].astype(str).str.replace(r"\.0$", "", regex=True)
-        df_transformed.drop(columns=["ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c"], inplace=True)
+        df_transformed.drop(columns=['Cust_CompositeKey', 'CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c'], inplace=True)
 
-        # SKU mapping
+        # SKU mapping using Composite Key
         df_sku = dfs_mapping["SKU Mapping"]
         df_sku = df_sku[[
-            "ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c"
-        ]].drop_duplicates(subset="ASI_CRM_Offtake_Product__c")
+            "ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c", "ASI_CRM_Mapping_Cust_Code__c"
+        ]]
+        df_sku['CompositeKey'] = df_sku['ASI_CRM_Offtake_Product__c'].astype(str) + '|' + df_sku['ASI_CRM_Mapping_Cust_Code__c'].astype(str)
+        df_sku = df_sku.drop_duplicates(subset=['CompositeKey'])
+
+        df_transformed['Prod_CompositeKey'] = df_transformed['Product Code'].astype(str) + '|' + '30010315'
 
         df_transformed = df_transformed.merge(
-            df_sku,
-            left_on="Product Code",
-            right_on="ASI_CRM_Offtake_Product__c",
-            how="left"
+            df_sku[['CompositeKey', 'ASI_CRM_SKU_Code__c']],
+            left_on='Prod_CompositeKey',
+            right_on='CompositeKey',
+            how='left'
         )
 
         product_index = df_transformed.columns.get_loc("Product Code")
         df_transformed.insert(product_index, "PRT Product Code", df_transformed["ASI_CRM_SKU_Code__c"].astype(str).str.strip())
-        df_transformed.drop(columns=["ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c"], inplace=True)
+        df_transformed.drop(columns=['Prod_CompositeKey', 'CompositeKey', 'ASI_CRM_SKU_Code__c'], inplace=True)
 
         # Reorder for consistency
         column_order = ["Column1", "Column2", "Column3", "Column4", "Customer Code", "Customer Name", "Date", "PRT Product Code", "Product Code", "Product Name", "Quantity", "Document Number"]
@@ -895,42 +970,57 @@ elif transformation_choice == "30030088 九久":
 
         # Load mapping sheets
         dfs_mapping = {
-            sheet: pd.read_excel(mapping_file, sheet_name=sheet)
+            sheet: pd.read_excel(mapping_file, sheet_name=sheet, dtype=str)
             for sheet in pd.ExcelFile(mapping_file).sheet_names
         }
 
-        # Customer mapping
-        df_customer = dfs_mapping["Customer Mapping"]
-        df_customer = df_customer[[
-            "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c"
-        ]].drop_duplicates(subset="ASI_CRM_Offtake_Customer_No__c")
+        # ✅ Customer mapping using Composite Key (Customer + Customer_No) - filter for 30030088 only
+        df_customer_all = dfs_mapping["Customer Mapping"]
+        df_customer = df_customer_all[df_customer_all["ASI_CRM_Mapping_Cust_No__c"].astype(str).str.replace(r"\.0$", "", regex=True) == "30030088"].copy()
+        
+        df_customer['Cust_CompositeKey'] = (
+            df_customer['ASI_CRM_Offtake_Customer_No__c'].astype(str) + '|' + 
+            df_customer['ASI_CRM_Mapping_Cust_No__c'].astype(str)
+        )
+        
+        df_transformed['Cust_CompositeKey'] = (
+            df_transformed['Customer Code'].astype(str) + '|' + '30030088'
+        )
 
         df_transformed = df_transformed.merge(
-            df_customer,
-            left_on="Customer Code",
-            right_on="ASI_CRM_Offtake_Customer_No__c",
-            how="left"
+            df_customer[['Cust_CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c']],
+            on='Cust_CompositeKey',
+            how='left'
         )
 
         df_transformed["Customer Code"] = df_transformed["ASI_CRM_JDE_Cust_No_Formula__c"].astype(str).str.replace(r"\.0$", "", regex=True)
-        df_transformed.drop(columns=["ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c"], inplace=True)
+        df_transformed.drop(
+            columns=['Cust_CompositeKey', "ASI_CRM_JDE_Cust_No_Formula__c"],
+            inplace=True
+        )
 
-        # SKU mapping
-        df_sku = dfs_mapping["SKU Mapping"]
-        df_sku = df_sku[[
-            "ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c"
-        ]].drop_duplicates(subset="ASI_CRM_Offtake_Product__c")
+        # ✅ SKU mapping using Composite Key (Product + Customer_Code) - filter for 30030088 only
+        df_sku_all = dfs_mapping["SKU Mapping"]
+        df_sku = df_sku_all[df_sku_all["ASI_CRM_Mapping_Cust_Code__c"].astype(str).str.replace(r"\.0$", "", regex=True) == "30030088"].copy()
+        
+        df_sku['Prod_CompositeKey'] = (
+            df_sku['ASI_CRM_Offtake_Product__c'].astype(str) + '|' + 
+            df_sku['ASI_CRM_Mapping_Cust_Code__c'].astype(str)
+        )
+        
+        df_transformed['Prod_CompositeKey'] = (
+            df_transformed['Product Code'].astype(str) + '|' + '30030088'
+        )
 
         df_transformed = df_transformed.merge(
-            df_sku,
-            left_on="Product Code",
-            right_on="ASI_CRM_Offtake_Product__c",
-            how="left"
+            df_sku[['Prod_CompositeKey', 'ASI_CRM_SKU_Code__c']],
+            on='Prod_CompositeKey',
+            how='left'
         )
 
         product_index = df_transformed.columns.get_loc("Product Code")
         df_transformed.insert(product_index, "PRT Product Code", df_transformed["ASI_CRM_SKU_Code__c"].astype(str).str.strip())
-        df_transformed.drop(columns=["ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c"], inplace=True)
+        df_transformed.drop(columns=['Prod_CompositeKey', "ASI_CRM_SKU_Code__c"], inplace=True)
 
         # Final column order
         column_order = ["Column1", "Column2", "Column3", "Column4", "Customer Code", "Customer Name", "Date", "PRT Product Code", "Product Code", "Product Name", "Quantity", "Document Number"]
@@ -1010,38 +1100,46 @@ elif transformation_choice == "30020145 鏵錡":
             for sheet in pd.ExcelFile(mapping_file).sheet_names
         }
 
-        # Customer Mapping
+        # Customer Mapping using Composite Key
         df_customer = dfs_mapping["Customer Mapping"]
         df_customer = df_customer[[
-            "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c"
-        ]].drop_duplicates(subset="ASI_CRM_Offtake_Customer_No__c")
+            "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", "ASI_CRM_Mapping_Cust_No__c"
+        ]]
+        df_customer['CompositeKey'] = df_customer['ASI_CRM_Offtake_Customer_No__c'].astype(str) + '|' + df_customer['ASI_CRM_Mapping_Cust_No__c'].astype(str)
+        df_customer = df_customer.drop_duplicates(subset=['CompositeKey'])
+
+        df_combined['Cust_CompositeKey'] = df_combined['Customer Code'].astype(str) + '|' + '30020145'
 
         df_combined = df_combined.merge(
-            df_customer,
-            left_on="Customer Code",
-            right_on="ASI_CRM_Offtake_Customer_No__c",
-            how="left"
+            df_customer[['CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c']],
+            left_on='Cust_CompositeKey',
+            right_on='CompositeKey',
+            how='left'
         )
 
         df_combined["Customer Code"] = df_combined["ASI_CRM_JDE_Cust_No_Formula__c"].astype(str).str.replace(r"\.0$", "", regex=True)
-        df_combined.drop(columns=["ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c"], inplace=True)
+        df_combined.drop(columns=['Cust_CompositeKey', 'CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c'], inplace=True)
 
-        # SKU Mapping
+        # SKU Mapping using Composite Key
         df_sku = dfs_mapping["SKU Mapping"]
         df_sku = df_sku[[
-            "ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c"
-        ]].drop_duplicates(subset="ASI_CRM_Offtake_Product__c")
+            "ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c", "ASI_CRM_Mapping_Cust_Code__c"
+        ]]
+        df_sku['CompositeKey'] = df_sku['ASI_CRM_Offtake_Product__c'].astype(str) + '|' + df_sku['ASI_CRM_Mapping_Cust_Code__c'].astype(str)
+        df_sku = df_sku.drop_duplicates(subset=['CompositeKey'])
+
+        df_combined['Prod_CompositeKey'] = df_combined['Product Code'].astype(str) + '|' + '30020145'
 
         df_combined = df_combined.merge(
-            df_sku,
-            left_on="Product Code",
-            right_on="ASI_CRM_Offtake_Product__c",
-            how="left"
+            df_sku[['CompositeKey', 'ASI_CRM_SKU_Code__c']],
+            left_on='Prod_CompositeKey',
+            right_on='CompositeKey',
+            how='left'
         )
 
         product_index = df_combined.columns.get_loc("Product Code")
         df_combined.insert(product_index, "PRT Product Code", df_combined["ASI_CRM_SKU_Code__c"].astype(str).str.strip())
-        df_combined.drop(columns=["ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c"], inplace=True)
+        df_combined.drop(columns=['Prod_CompositeKey', 'CompositeKey', 'ASI_CRM_SKU_Code__c'], inplace=True)
 
         # Insert fixed columns
         df_combined.insert(0, "Column4", "任我行")
@@ -1138,31 +1236,39 @@ elif transformation_choice == "30010199 振泰 OFF":
         df_customer_mapping = dfs_mapping["Customer Mapping"]
         df_customer_mapping = df_customer_mapping[
             df_customer_mapping["ASI_CRM_Mapping_Cust_No__c"] == 30010199
-        ][["ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c"]].drop_duplicates()
+        ][["ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", "ASI_CRM_Mapping_Cust_No__c"]]
+        df_customer_mapping['Cust_CompositeKey'] = df_customer_mapping['ASI_CRM_Offtake_Customer_No__c'].astype(str) + '|' + df_customer_mapping['ASI_CRM_Mapping_Cust_No__c'].astype(str)
+        df_customer_mapping = df_customer_mapping.drop_duplicates(subset="Cust_CompositeKey")
+
+        df['Cust_CompositeKey'] = df['Customer Code'].astype(str) + '|' + '30010199'
 
         df = df.merge(
-            df_customer_mapping,
-            left_on="Customer Code",
-            right_on="ASI_CRM_Offtake_Customer_No__c",
+            df_customer_mapping[['Cust_CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c']],
+            left_on='Cust_CompositeKey',
+            right_on='Cust_CompositeKey',
             how="left"
         )
 
         df["Customer Code"] = df["ASI_CRM_JDE_Cust_No_Formula__c"].astype(str).str.replace(r"\.0$", "", regex=True)
-        df.drop(columns=["ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c"], inplace=True)
+        df.drop(columns=['Cust_CompositeKey', "ASI_CRM_JDE_Cust_No_Formula__c"], inplace=True)
 
         df_sku_mapping = dfs_mapping["SKU Mapping"]
         df_sku_mapping = df_sku_mapping[[
-            "ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c"
-        ]].drop_duplicates()
+            "ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c", "ASI_CRM_Mapping_Cust_Code__c"
+        ]]
+        df_sku_mapping['Prod_CompositeKey'] = df_sku_mapping['ASI_CRM_Offtake_Product__c'].astype(str) + '|' + df_sku_mapping['ASI_CRM_Mapping_Cust_Code__c'].astype(str)
+        df_sku_mapping = df_sku_mapping.drop_duplicates(subset="Prod_CompositeKey")
+
+        df['Prod_CompositeKey'] = df['Product Code'].astype(str) + '|' + '30010199'
 
         df = df.merge(
-            df_sku_mapping,
-            left_on="Product Code",
-            right_on="ASI_CRM_Offtake_Product__c",
+            df_sku_mapping[['Prod_CompositeKey', 'ASI_CRM_SKU_Code__c']],
+            left_on='Prod_CompositeKey',
+            right_on='Prod_CompositeKey',
             how="left"
         )
         df.insert(df.columns.get_loc("Product Code"), "PRT Product Code", df["ASI_CRM_SKU_Code__c"].astype(str).str.strip())
-        df.drop(columns=["ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c"], inplace=True)
+        df.drop(columns=['Prod_CompositeKey', "ASI_CRM_SKU_Code__c"], inplace=True)
 
         # Add 4 fixed columns
         df.insert(1, "Col1", "INV")
@@ -1278,31 +1384,39 @@ elif transformation_choice == "30010176 振泰 ON":
         df_customer_mapping = dfs_mapping["Customer Mapping"]
         df_customer_mapping = df_customer_mapping[
             df_customer_mapping["ASI_CRM_Mapping_Cust_No__c"] == 30010176
-        ][["ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c"]].drop_duplicates()
+        ][["ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", "ASI_CRM_Mapping_Cust_No__c"]]
+        df_customer_mapping['Cust_CompositeKey'] = df_customer_mapping['ASI_CRM_Offtake_Customer_No__c'].astype(str) + '|' + df_customer_mapping['ASI_CRM_Mapping_Cust_No__c'].astype(str)
+        df_customer_mapping = df_customer_mapping.drop_duplicates(subset="Cust_CompositeKey")
+
+        df['Cust_CompositeKey'] = df['Customer Code'].astype(str) + '|' + '30010176'
 
         df = df.merge(
-            df_customer_mapping,
-            left_on="Customer Code",
-            right_on="ASI_CRM_Offtake_Customer_No__c",
+            df_customer_mapping[['Cust_CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c']],
+            left_on='Cust_CompositeKey',
+            right_on='Cust_CompositeKey',
             how="left"
         )
 
         df["Customer Code"] = df["ASI_CRM_JDE_Cust_No_Formula__c"].astype(str).str.replace(r"\.0$", "", regex=True)
-        df.drop(columns=["ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c"], inplace=True)
+        df.drop(columns=['Cust_CompositeKey', "ASI_CRM_JDE_Cust_No_Formula__c"], inplace=True)
 
         df_sku_mapping = dfs_mapping["SKU Mapping"]
         df_sku_mapping = df_sku_mapping[[
-            "ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c"
-        ]].drop_duplicates()
+            "ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c", "ASI_CRM_Mapping_Cust_Code__c"
+        ]]
+        df_sku_mapping['Prod_CompositeKey'] = df_sku_mapping['ASI_CRM_Offtake_Product__c'].astype(str) + '|' + df_sku_mapping['ASI_CRM_Mapping_Cust_Code__c'].astype(str)
+        df_sku_mapping = df_sku_mapping.drop_duplicates(subset="Prod_CompositeKey")
+
+        df['Prod_CompositeKey'] = df['Product Code'].astype(str) + '|' + '30010176'
 
         df = df.merge(
-            df_sku_mapping,
-            left_on="Product Code",
-            right_on="ASI_CRM_Offtake_Product__c",
+            df_sku_mapping[['Prod_CompositeKey', 'ASI_CRM_SKU_Code__c']],
+            left_on='Prod_CompositeKey',
+            right_on='Prod_CompositeKey',
             how="left"
         )
         df.insert(df.columns.get_loc("Product Code"), "PRT Product Code", df["ASI_CRM_SKU_Code__c"].astype(str).str.strip())
-        df.drop(columns=["ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c"], inplace=True)
+        df.drop(columns=['Prod_CompositeKey', "ASI_CRM_SKU_Code__c"], inplace=True)
 
         # Add 4 fixed columns
         df.insert(1, "Col1", "INV")
@@ -1387,38 +1501,50 @@ elif transformation_choice == "30030094 和易 ON":
         depletion_df.insert(2, "Customer Group Code", "30030094")
         depletion_df.insert(3, "Customer Group Name", "和易 ON")
 
-        # Mapping: Customer
-        mapping_customer = pd.read_excel(mapping_file, sheet_name="Customer Mapping")
-        mapping_customer = mapping_customer[[
-            "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c"
-        ]].drop_duplicates(subset="ASI_CRM_Offtake_Customer_No__c")
+        # ✅ Mapping: Customer using Composite Key - filter for 30030094 only
+        mapping_customer_all = pd.read_excel(mapping_file, sheet_name="Customer Mapping", dtype=str)
+        mapping_customer = mapping_customer_all[mapping_customer_all["ASI_CRM_Mapping_Cust_No__c"].astype(str).str.replace(r"\.0$", "", regex=True) == "30030094"].copy()
+        
+        mapping_customer['Cust_CompositeKey'] = (
+            mapping_customer['ASI_CRM_Offtake_Customer_No__c'].astype(str) + '|' + 
+            mapping_customer['ASI_CRM_Mapping_Cust_No__c'].astype(str)
+        )
+        
+        depletion_df['Cust_CompositeKey'] = (
+            depletion_df['Customer Code'].astype(str) + '|' + '30030094'
+        )
 
         depletion_df = depletion_df.merge(
-            mapping_customer,
-            left_on="Customer Code",
-            right_on="ASI_CRM_Offtake_Customer_No__c",
-            how="left"
+            mapping_customer[['Cust_CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c']],
+            on='Cust_CompositeKey',
+            how='left'
         )
 
         depletion_df["Customer Code"] = depletion_df["ASI_CRM_JDE_Cust_No_Formula__c"].astype(str).str.replace(r"\\.0$", "", regex=True)
-        depletion_df.drop(columns=["ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c"], inplace=True)
+        depletion_df.drop(columns=['Cust_CompositeKey', "ASI_CRM_JDE_Cust_No_Formula__c"], inplace=True)
 
-        # Mapping: SKU
-        mapping_sku = pd.read_excel(mapping_file, sheet_name="SKU Mapping")
-        mapping_sku = mapping_sku[[
-            "ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c"
-        ]].drop_duplicates(subset="ASI_CRM_Offtake_Product__c")
+        # ✅ Mapping: SKU using Composite Key - filter for 30030094 only
+        mapping_sku_all = pd.read_excel(mapping_file, sheet_name="SKU Mapping", dtype=str)
+        mapping_sku = mapping_sku_all[mapping_sku_all["ASI_CRM_Mapping_Cust_Code__c"].astype(str).str.replace(r"\.0$", "", regex=True) == "30030094"].copy()
+        
+        mapping_sku['Prod_CompositeKey'] = (
+            mapping_sku['ASI_CRM_Offtake_Product__c'].astype(str) + '|' + 
+            mapping_sku['ASI_CRM_Mapping_Cust_Code__c'].astype(str)
+        )
+        
+        depletion_df['Prod_CompositeKey'] = (
+            depletion_df['Product Code'].astype(str) + '|' + '30030094'
+        )
 
         depletion_df = depletion_df.merge(
-            mapping_sku,
-            left_on="Product Code",
-            right_on="ASI_CRM_Offtake_Product__c",
-            how="left"
+            mapping_sku[['Prod_CompositeKey', 'ASI_CRM_SKU_Code__c']],
+            on='Prod_CompositeKey',
+            how='left'
         )
 
         product_index = depletion_df.columns.get_loc("Product Code")
         depletion_df.insert(product_index, "PRT Product Code", depletion_df["ASI_CRM_SKU_Code__c"].astype(str).str.strip())
-        depletion_df.drop(columns=["ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c"], inplace=True)
+        depletion_df.drop(columns=['Prod_CompositeKey', "ASI_CRM_SKU_Code__c"], inplace=True)
 
         # Convert Minguo date to YYYYMMDD
         def convert_minguo_date(date_str):
@@ -1506,38 +1632,50 @@ elif transformation_choice == "33001422 和易 OFF":
 
         df_extracted["Date"] = df_extracted["Date"].apply(convert_minguo_date)
 
-        # Customer Mapping
-        mapping_customer = pd.read_excel(mapping_file, sheet_name="Customer Mapping")
-        mapping_customer = mapping_customer[[
-            "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c"
-        ]].drop_duplicates(subset="ASI_CRM_Offtake_Customer_No__c")
+        # ✅ Customer Mapping using Composite Key - filter for 33001422 only
+        mapping_customer_all = pd.read_excel(mapping_file, sheet_name="Customer Mapping", dtype=str)
+        mapping_customer = mapping_customer_all[mapping_customer_all["ASI_CRM_Mapping_Cust_No__c"].astype(str).str.replace(r"\.0$", "", regex=True) == "33001422"].copy()
+        
+        mapping_customer['Cust_CompositeKey'] = (
+            mapping_customer['ASI_CRM_Offtake_Customer_No__c'].astype(str) + '|' + 
+            mapping_customer['ASI_CRM_Mapping_Cust_No__c'].astype(str)
+        )
+        
+        df_extracted['Cust_CompositeKey'] = (
+            df_extracted['Customer Code'].astype(str) + '|' + '33001422'
+        )
 
         df_extracted = df_extracted.merge(
-            mapping_customer,
-            left_on="Customer Code",
-            right_on="ASI_CRM_Offtake_Customer_No__c",
-            how="left"
+            mapping_customer[['Cust_CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c']],
+            on='Cust_CompositeKey',
+            how='left'
         )
 
         df_extracted["Customer Code"] = df_extracted["ASI_CRM_JDE_Cust_No_Formula__c"].astype(str).str.replace(r"\.0$", "", regex=True)
-        df_extracted.drop(columns=["ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c"], inplace=True)
+        df_extracted.drop(columns=['Cust_CompositeKey', "ASI_CRM_JDE_Cust_No_Formula__c"], inplace=True)
 
-        # SKU Mapping
-        mapping_sku = pd.read_excel(mapping_file, sheet_name="SKU Mapping")
-        mapping_sku = mapping_sku[[
-            "ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c"
-        ]].drop_duplicates(subset="ASI_CRM_Offtake_Product__c")
+        # ✅ SKU Mapping using Composite Key - filter for 33001422 only
+        mapping_sku_all = pd.read_excel(mapping_file, sheet_name="SKU Mapping", dtype=str)
+        mapping_sku = mapping_sku_all[mapping_sku_all["ASI_CRM_Mapping_Cust_Code__c"].astype(str).str.replace(r"\.0$", "", regex=True) == "33001422"].copy()
+        
+        mapping_sku['Prod_CompositeKey'] = (
+            mapping_sku['ASI_CRM_Offtake_Product__c'].astype(str) + '|' + 
+            mapping_sku['ASI_CRM_Mapping_Cust_Code__c'].astype(str)
+        )
+        
+        df_extracted['Prod_CompositeKey'] = (
+            df_extracted['Product Code'].astype(str) + '|' + '33001422'
+        )
 
         df_extracted = df_extracted.merge(
-            mapping_sku,
-            left_on="Product Code",
-            right_on="ASI_CRM_Offtake_Product__c",
-            how="left"
+            mapping_sku[['Prod_CompositeKey', 'ASI_CRM_SKU_Code__c']],
+            on='Prod_CompositeKey',
+            how='left'
         )
 
         product_index = df_extracted.columns.get_loc("Product Code")
         df_extracted.insert(product_index, "PRT Product Code", df_extracted["ASI_CRM_SKU_Code__c"].astype(str).str.strip())
-        df_extracted.drop(columns=["ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c"], inplace=True)
+        df_extracted.drop(columns=['Prod_CompositeKey', "ASI_CRM_SKU_Code__c"], inplace=True)
 
         st.write("✅ Processed Data Preview:")
         st.dataframe(df_extracted)
@@ -1636,25 +1774,40 @@ elif transformation_choice == "30010017 正興(振興)":
         sku_map["ASI_CRM_Offtake_Product__c"] = sku_map["ASI_CRM_Offtake_Product__c"].astype(str).str.strip()
 
         # Customer mapping: replace with JDE when available; otherwise leave BLANK
+        cust_map = cust_map[["ASI_CRM_Offtake_Customer_No__c","ASI_CRM_JDE_Cust_No_Formula__c", "ASI_CRM_Mapping_Cust_No__c"]]
+        cust_map['Cust_CompositeKey'] = cust_map['ASI_CRM_Offtake_Customer_No__c'].astype(str) + '|' + cust_map['ASI_CRM_Mapping_Cust_No__c'].astype(str)
+        cust_map = cust_map.drop_duplicates(subset="Cust_CompositeKey")
+
+        df_parsed['Cust_CompositeKey'] = df_parsed['CustomerCode'].astype(str) + '|' + '30010017'
+
         df_parsed = df_parsed.merge(
-            cust_map[["ASI_CRM_Offtake_Customer_No__c","ASI_CRM_JDE_Cust_No_Formula__c"]]
-                .drop_duplicates(subset="ASI_CRM_Offtake_Customer_No__c"),
-            left_on="CustomerCode", right_on="ASI_CRM_Offtake_Customer_No__c", how="left"
+            cust_map[['Cust_CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c']],
+            left_on='Cust_CompositeKey',
+            right_on='Cust_CompositeKey',
+            how="left"
         )
         df_parsed["CustomerCode"] = (
             df_parsed["ASI_CRM_JDE_Cust_No_Formula__c"]
             .fillna("")
             .astype(str).str.strip().str.replace(r"\.0$", "", regex=True)
         )
-        df_parsed.drop(columns=["ASI_CRM_Offtake_Customer_No__c","ASI_CRM_JDE_Cust_No_Formula__c"], inplace=True)
+        df_parsed.drop(columns=['Cust_CompositeKey', "ASI_CRM_JDE_Cust_No_Formula__c"], inplace=True)
 
         # SKU mapping: fill PRT_Product_Code when available; else leave as NaN (do NOT force)
+        sku_map = sku_map[["ASI_CRM_Offtake_Product__c","ASI_CRM_SKU_Code__c", "ASI_CRM_Mapping_Cust_Code__c"]]
+        sku_map['Prod_CompositeKey'] = sku_map['ASI_CRM_Offtake_Product__c'].astype(str) + '|' + sku_map['ASI_CRM_Mapping_Cust_Code__c'].astype(str)
+        sku_map = sku_map.drop_duplicates(subset="Prod_CompositeKey")
+
+        df_parsed['Prod_CompositeKey'] = df_parsed['ProductCode'].astype(str) + '|' + '30010017'
+
         df_parsed = df_parsed.merge(
-            sku_map[["ASI_CRM_Offtake_Product__c","ASI_CRM_SKU_Code__c"]],
-            left_on="ProductCode", right_on="ASI_CRM_Offtake_Product__c", how="left"
+            sku_map[['Prod_CompositeKey', 'ASI_CRM_SKU_Code__c']],
+            left_on='Prod_CompositeKey',
+            right_on='Prod_CompositeKey',
+            how="left"
         )
         df_parsed["PRT_Product_Code"] = df_parsed["ASI_CRM_SKU_Code__c"]
-        df_parsed.drop(columns=["ASI_CRM_Offtake_Product__c","ASI_CRM_SKU_Code__c"], inplace=True)
+        df_parsed.drop(columns=['Prod_CompositeKey', "ASI_CRM_SKU_Code__c"], inplace=True)
 
         # --- De-duplicate exact duplicates (keep first) ---
         dedup_keys = ["GroupCode","CustomerCode","Date","ProductCode","Quantity"]
@@ -1745,23 +1898,40 @@ elif transformation_choice == "30010031 廣茂隆(八條)":
         sku_map["ASI_CRM_Offtake_Product__c"] = sku_map["ASI_CRM_Offtake_Product__c"].astype(str).str.strip()
 
         # ---- Customer mapping (non-forced): use JDE when present, else keep original ----
+        cust_map = cust_map[["ASI_CRM_Offtake_Customer_No__c","ASI_CRM_JDE_Cust_No_Formula__c", "ASI_CRM_Mapping_Cust_No__c"]]
+        cust_map['Cust_CompositeKey'] = cust_map['ASI_CRM_Offtake_Customer_No__c'].astype(str) + '|' + cust_map['ASI_CRM_Mapping_Cust_No__c'].astype(str)
+        cust_map = cust_map.drop_duplicates(subset="Cust_CompositeKey")
+
+        df['Cust_CompositeKey'] = df['CustomerCode'].astype(str) + '|' + '30010031'
+
         df = df.merge(
-            cust_map[["ASI_CRM_Offtake_Customer_No__c","ASI_CRM_JDE_Cust_No_Formula__c"]],
-            left_on="CustomerCode", right_on="ASI_CRM_Offtake_Customer_No__c", how="left"
+            cust_map[['Cust_CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c']],
+            left_on='Cust_CompositeKey',
+            right_on='Cust_CompositeKey',
+            how="left"
         )
         df["CustomerCode"] = (
             df["ASI_CRM_JDE_Cust_No_Formula__c"]
             .fillna("")  # <- key change: no fallback to external code
             .astype(str).str.strip().str.replace(r"\.0$", "", regex=True)
         )
+        df.drop(columns=['Cust_CompositeKey', "ASI_CRM_JDE_Cust_No_Formula__c"], inplace=True)
 
         # ---- SKU mapping (non-forced): fill PRT SKU when present, else leave NaN ----
+        sku_map = sku_map[["ASI_CRM_Offtake_Product__c","ASI_CRM_SKU_Code__c", "ASI_CRM_Mapping_Cust_Code__c"]]
+        sku_map['Prod_CompositeKey'] = sku_map['ASI_CRM_Offtake_Product__c'].astype(str) + '|' + sku_map['ASI_CRM_Mapping_Cust_Code__c'].astype(str)
+        sku_map = sku_map.drop_duplicates(subset="Prod_CompositeKey")
+
+        df['Prod_CompositeKey'] = df['ProductCode'].astype(str) + '|' + '30010031'
+
         df = df.merge(
-            sku_map[["ASI_CRM_Offtake_Product__c","ASI_CRM_SKU_Code__c"]],
-            left_on="ProductCode", right_on="ASI_CRM_Offtake_Product__c", how="left"
+            sku_map[['Prod_CompositeKey', 'ASI_CRM_SKU_Code__c']],
+            left_on='Prod_CompositeKey',
+            right_on='Prod_CompositeKey',
+            how="left"
         )
         df["PRT_Product_Code"] = df["ASI_CRM_SKU_Code__c"]
-        df.drop(columns=["ASI_CRM_Offtake_Product__c","ASI_CRM_SKU_Code__c"], inplace=True)
+        df.drop(columns=['Prod_CompositeKey', "ASI_CRM_SKU_Code__c"], inplace=True)
 
         # ---- Add metadata columns and order ----
         df.insert(0, "Type", "INV")
@@ -1859,24 +2029,34 @@ elif transformation_choice == "30020016 日嵩":
         sku_f  = sku_map[ sku_map["ASI_CRM_Mapping_Cust_Code__c"].astype(str).str.replace(r"\.0$", "", regex=True)=="30020016"].copy()
 
         # prep normalized key/value frames
-        def prep_cust(dfm):
+        def prep_cust(dfm, group=None):
             out = dfm.copy()
             out["key"] = (out["ASI_CRM_Offtake_Customer_No__c"]
                           .astype(str).str.strip().str.upper()
                           .str.replace(r"\.0$", "", regex=True).str.replace(' ', '', regex=False))
+            if group:
+                if isinstance(group, str) and group in dfm.columns:
+                    out["key"] = out["key"] + '|' + out[group].astype(str)
+                else:
+                    out["key"] = out["key"] + '|' + str(group)
             out["val"] = out["ASI_CRM_JDE_Cust_No_Formula__c"].astype(str).str.strip()
             return out[["key","val"]]
 
-        def prep_sku(dfm):
+        def prep_sku(dfm, group=None):
             out = dfm.copy()
             out["key"] = out["ASI_CRM_Offtake_Product__c"].astype(str).str.strip().str.upper().str.replace(' ', '', regex=False)
+            if group:
+                if isinstance(group, str) and group in dfm.columns:
+                    out["key"] = out["key"] + '|' + out[group].astype(str)
+                else:
+                    out["key"] = out["key"] + '|' + str(group)
             out["val"] = out["ASI_CRM_SKU_Code__c"].astype(str).str.strip()
             return out[["key","val"]]
 
-        cust_f_kv   = prep_cust(cust_f)
-        cust_all_kv = prep_cust(cust_map)
-        sku_f_kv    = prep_sku(sku_f)
-        sku_all_kv  = prep_sku(sku_map)
+        cust_f_kv   = prep_cust(cust_f, "30020016")
+        cust_all_kv = prep_cust(cust_map, "ASI_CRM_Mapping_Cust_No__c")
+        sku_f_kv    = prep_sku(sku_f, "30020016")
+        sku_all_kv  = prep_sku(sku_map, "ASI_CRM_Mapping_Cust_Code__c")
 
         # keep only keys with a SINGLE unique target (avoid fan-out duplicates)
         def unique_only(kv: pd.DataFrame) -> pd.DataFrame:
@@ -1896,14 +2076,14 @@ elif transformation_choice == "30020016 日嵩":
         sku_all_dict  = dict(zip(sku_all_unique["key"],  sku_all_unique["val"]))
 
         # ---------- 6) Apply mapping WITHOUT forcing, and avoid many-to-one fan-out ----------
-        jde_from_filtered = df["CustomerCode_norm"].map(cust_f_dict)
+        jde_from_filtered = (df["CustomerCode_norm"] + '|30020016').map(cust_f_dict)
         jde_from_global   = df["CustomerCode_norm"].map(cust_all_dict)
         df["CustomerCode_final"] = (
             jde_from_filtered.fillna(jde_from_global).fillna(df["CustomerCode_norm"])
             .astype(str).str.replace(r"\.0$", "", regex=True)
         )
 
-        prt_from_filtered = df["ProductCode_norm"].map(sku_f_dict)
+        prt_from_filtered = (df["ProductCode_norm"] + '|30020016').map(sku_f_dict)
         prt_from_global   = df["ProductCode_norm"].map(sku_all_dict)
         df["PRT_Product_Code"] = prt_from_filtered.fillna(prt_from_global)  # leave NaN if still missing
 
@@ -1988,53 +2168,43 @@ elif transformation_choice == "30020027 榮好(實儀)":
         date_val = m.group(2) if m else None
         df["Date"] = date_val
 
-        # ---- 6) Load mappings (dtype=str) ----
+        # ---- 6) Load mappings using Composite Keys ----
         cust_map = pd.read_excel(mapping_file, sheet_name="Customer Mapping", dtype=str)
         sku_map  = pd.read_excel(mapping_file, sheet_name="SKU Mapping", dtype=str)
 
-        # Filter to this wholesaler (preferred), but keep global as fallback
-        cust_f = cust_map[cust_map["ASI_CRM_Mapping_Cust_No__c"].astype(str).str.replace(r"\.0$", "", regex=True) == "30020027"].copy()
-        sku_f  = sku_map[ sku_map["ASI_CRM_Mapping_Cust_Code__c"].astype(str).str.replace(r"\.0$", "", regex=True) == "30020027"].copy()
+        # Customer mapping
+        df_customer_mapping = cust_map[cust_map["ASI_CRM_Mapping_Cust_No__c"].astype(str).str.replace(r"\.0$", "", regex=True) == "30020027"].copy()
+        df_customer_mapping['CompositeKey'] = df_customer_mapping['ASI_CRM_Offtake_Customer_No__c'].astype(str) + '|' + df_customer_mapping['ASI_CRM_Mapping_Cust_No__c'].astype(str)
+        df_customer_mapping = df_customer_mapping.drop_duplicates(subset=['CompositeKey'])
 
-        # Prepare normalized key/value frames
-        def prep_cust(dfm: pd.DataFrame) -> pd.DataFrame:
-            out = dfm.copy()
-            out["key"] = out["ASI_CRM_Offtake_Customer_No__c"].astype(str).str.strip().str.replace(r"\.0$", "", regex=True)
-            out["val"] = out["ASI_CRM_JDE_Cust_No_Formula__c"].astype(str).str.strip()
-            return out[["key","val"]]
+        df['Cust_CompositeKey'] = df['CustomerCode_norm'].astype(str) + '|' + '30020027'
 
-        def prep_sku(dfm: pd.DataFrame) -> pd.DataFrame:
-            out = dfm.copy()
-            out["key"] = out["ASI_CRM_Offtake_Product__c"].astype(str).str.strip().str.upper()
-            out["val"] = out["ASI_CRM_SKU_Code__c"].astype(str).str.strip()
-            return out[["key","val"]]
-
-        def unique_only(kv: pd.DataFrame) -> pd.DataFrame:
-            g = kv.groupby("key")["val"].nunique().reset_index(name="n")
-            uniq_keys = g[g["n"] == 1]["key"]
-            return kv[kv["key"].isin(uniq_keys)].drop_duplicates(subset=["key"], keep="first")
-
-        cust_f_kv    = unique_only(prep_cust(cust_f))
-        cust_all_kv  = unique_only(prep_cust(cust_map))
-        sku_f_kv     = unique_only(prep_sku(sku_f))
-        sku_all_kv   = unique_only(prep_sku(sku_map))
-
-        cust_f_dict   = dict(zip(cust_f_kv["key"],   cust_f_kv["val"]))
-        cust_all_dict = dict(zip(cust_all_kv["key"], cust_all_kv["val"]))
-        sku_f_dict    = dict(zip(sku_f_kv["key"],    sku_f_kv["val"]))
-        sku_all_dict  = dict(zip(sku_all_kv["key"],  sku_all_kv["val"]))
-
-        # 7) Apply mapping WITHOUT fan-out (unique-only); if ambiguous or missing, keep external
-        jde_from_filtered = df["CustomerCode_norm"].map(cust_f_dict)
-        jde_from_global   = df["CustomerCode_norm"].map(cust_all_dict)
-        df["CustomerCode_final"] = (
-            jde_from_filtered.fillna(jde_from_global).fillna(df["CustomerCode_norm"])
-            .astype(str).str.replace(r"\.0$", "", regex=True)
+        df = df.merge(
+            df_customer_mapping[['CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c']],
+            left_on='Cust_CompositeKey',
+            right_on='CompositeKey',
+            how='left'
         )
 
-        prt_from_filtered = df["ProductCode_norm"].map(sku_f_dict)
-        prt_from_global   = df["ProductCode_norm"].map(sku_all_dict)
-        df["PRT_Product_Code"] = prt_from_filtered.fillna(prt_from_global)  # leave NaN if still missing
+        df["CustomerCode_final"] = df["ASI_CRM_JDE_Cust_No_Formula__c"].fillna(df["CustomerCode_norm"]).astype(str).str.replace(r"\.0$", "", regex=True)
+        df.drop(columns=['Cust_CompositeKey', 'CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c'], inplace=True)
+
+        # SKU mapping
+        df_sku_mapping = sku_map[sku_map["ASI_CRM_Mapping_Cust_Code__c"].astype(str).str.replace(r"\.0$", "", regex=True) == "30020027"].copy()
+        df_sku_mapping['CompositeKey'] = df_sku_mapping['ASI_CRM_Offtake_Product__c'].astype(str) + '|' + df_sku_mapping['ASI_CRM_Mapping_Cust_Code__c'].astype(str)
+        df_sku_mapping = df_sku_mapping.drop_duplicates(subset=['CompositeKey'])
+
+        df['Prod_CompositeKey'] = df['ProductCode_norm'].astype(str) + '|' + '30020027'
+
+        df = df.merge(
+            df_sku_mapping[['CompositeKey', 'ASI_CRM_SKU_Code__c']],
+            left_on='Prod_CompositeKey',
+            right_on='CompositeKey',
+            how='left'
+        )
+
+        df["PRT_Product_Code"] = df["ASI_CRM_SKU_Code__c"]
+        df.drop(columns=['Prod_CompositeKey', 'CompositeKey', 'ASI_CRM_SKU_Code__c'], inplace=True)
 
         # 8) Assemble final ordered frame
         df_final = pd.DataFrame({
@@ -2138,21 +2308,31 @@ elif transformation_choice == "30020180 暐倫 OFF":
         cust_f = cust_map[cust_map["ASI_CRM_Mapping_Cust_No__c"].astype(str).str.replace(r"\.0$", "", regex=True) == "30020180"].copy()
         sku_f  = sku_map[ sku_map["ASI_CRM_Mapping_Cust_Code__c"].astype(str).str.replace(r"\.0$", "", regex=True) == "30020180"].copy()
 
-        def prep_cust(dfm: pd.DataFrame) -> pd.DataFrame:
+        def prep_cust(dfm: pd.DataFrame, group=None) -> pd.DataFrame:
             out = dfm.copy()
             out["key"] = (
                 out["ASI_CRM_Offtake_Customer_No__c"]
                 .astype(str).str.strip().str.replace(r"\.0$", "", regex=True)
             )
+            if group:
+                if isinstance(group, str) and group in dfm.columns:
+                    out["key"] = out["key"] + '|' + out[group].astype(str)
+                else:
+                    out["key"] = out["key"] + '|' + str(group)
             out["val"] = out["ASI_CRM_JDE_Cust_No_Formula__c"].astype(str).str.strip()
             return out[["key","val"]]
 
-        def prep_sku(dfm: pd.DataFrame) -> pd.DataFrame:
+        def prep_sku(dfm: pd.DataFrame, group=None) -> pd.DataFrame:
             out = dfm.copy()
             out["key"] = (
                 out["ASI_CRM_Offtake_Product__c"]
                 .astype(str).str.strip().str.upper()
             )
+            if group:
+                if isinstance(group, str) and group in dfm.columns:
+                    out["key"] = out["key"] + '|' + out[group].astype(str)
+                else:
+                    out["key"] = out["key"] + '|' + str(group)
             out["val"] = out["ASI_CRM_SKU_Code__c"].astype(str).str.strip()
             return out[["key","val"]]
 
@@ -2162,10 +2342,10 @@ elif transformation_choice == "30020180 暐倫 OFF":
             uniq = g[g["n"] == 1]["key"]
             return kv[kv["key"].isin(uniq)].drop_duplicates(subset=["key"], keep="first")
 
-        cust_f_kv    = unique_only(prep_cust(cust_f))
-        cust_all_kv  = unique_only(prep_cust(cust_map))
-        sku_f_kv     = unique_only(prep_sku(sku_f))
-        sku_all_kv   = unique_only(prep_sku(sku_map))
+        cust_f_kv    = unique_only(prep_cust(cust_f, "30020180"))
+        cust_all_kv  = unique_only(prep_cust(cust_map, "ASI_CRM_Mapping_Cust_No__c"))
+        sku_f_kv     = unique_only(prep_sku(sku_f, "30020180"))
+        sku_all_kv   = unique_only(prep_sku(sku_map, "ASI_CRM_Mapping_Cust_Code__c"))
 
         cust_f_dict   = dict(zip(cust_f_kv["key"],   cust_f_kv["val"]))
         cust_all_dict = dict(zip(cust_all_kv["key"], cust_all_kv["val"]))
@@ -2173,14 +2353,14 @@ elif transformation_choice == "30020180 暐倫 OFF":
         sku_all_dict  = dict(zip(sku_all_kv["key"],  sku_all_kv["val"]))
 
         # ---------- 6) Apply mapping (non-forced, unique-only) ----------
-        jde_from_filtered = df["CustomerCode_norm"].map(cust_f_dict)
+        jde_from_filtered = (df["CustomerCode_norm"] + '|30020180').map(cust_f_dict)
         jde_from_global   = df["CustomerCode_norm"].map(cust_all_dict)
         df["CustomerCode_final"] = (
             jde_from_filtered.fillna(jde_from_global).fillna(df["CustomerCode_norm"])
             .astype(str).str.replace(r"\.0$", "", regex=True)
         )
 
-        prt_from_filtered = df["ProductCode_norm"].map(sku_f_dict)
+        prt_from_filtered = (df["ProductCode_norm"] + '|30020180').map(sku_f_dict)
         prt_from_global   = df["ProductCode_norm"].map(sku_all_dict)
         df["PRT_Product_Code"] = prt_from_filtered.fillna(prt_from_global)  # leave NaN if still missing
 
@@ -2326,16 +2506,26 @@ elif transformation_choice == "30020203 玄星 OFF":
         cust_f = cust_map[cust_map["ASI_CRM_Mapping_Cust_No__c"].astype(str).str.replace(r"\.0$", "", regex=True) == "30020203"].copy()
         sku_f  = sku_map[ sku_map["ASI_CRM_Mapping_Cust_Code__c"].astype(str).str.replace(r"\.0$", "", regex=True) == "30020203"].copy()
 
-        def prep_cust(dfm):
+        def prep_cust(dfm, group=None):
             out = dfm.copy()
             out["key"] = (out["ASI_CRM_Offtake_Customer_No__c"].astype(str)
                           .str.strip().str.upper().str.replace(r"\.0$", "", regex=True).str.replace(" ", "", regex=False))
+            if group:
+                if isinstance(group, str) and group in dfm.columns:
+                    out["key"] = out["key"] + '|' + out[group].astype(str)
+                else:
+                    out["key"] = out["key"] + '|' + str(group)
             out["val"] = out["ASI_CRM_JDE_Cust_No_Formula__c"].astype(str).str.strip()
             return out[["key","val"]]
 
-        def prep_sku(dfm):
+        def prep_sku(dfm, group=None):
             out = dfm.copy()
             out["key"] = out["ASI_CRM_Offtake_Product__c"].astype(str).str.strip().str.upper()
+            if group:
+                if isinstance(group, str) and group in dfm.columns:
+                    out["key"] = out["key"] + '|' + out[group].astype(str)
+                else:
+                    out["key"] = out["key"] + '|' + str(group)
             out["val"] = out["ASI_CRM_SKU_Code__c"].astype(str).str.strip()
             return out[["key","val"]]
 
@@ -2344,21 +2534,21 @@ elif transformation_choice == "30020203 玄星 OFF":
             uniq = g[g["n"] == 1]["key"]
             return kv[kv["key"].isin(uniq)].drop_duplicates(subset=["key"], keep="first")
 
-        cust_f_dict   = dict(zip(unique_only(prep_cust(cust_f))["key"],   unique_only(prep_cust(cust_f))["val"]))
-        cust_all_dict = dict(zip(unique_only(prep_cust(cust_map))["key"], unique_only(prep_cust(cust_map))["val"]))
-        sku_f_dict    = dict(zip(unique_only(prep_sku(sku_f))["key"],     unique_only(prep_sku(sku_f))["val"]))
-        sku_all_dict  = dict(zip(unique_only(prep_sku(sku_map))["key"],   unique_only(prep_sku(sku_map))["val"]))
+        cust_f_dict   = dict(zip(unique_only(prep_cust(cust_f, "30020203"))["key"],   unique_only(prep_cust(cust_f, "30020203"))["val"]))
+        cust_all_dict = dict(zip(unique_only(prep_cust(cust_map, "ASI_CRM_Mapping_Cust_No__c"))["key"], unique_only(prep_cust(cust_map, "ASI_CRM_Mapping_Cust_No__c"))["val"]))
+        sku_f_dict    = dict(zip(unique_only(prep_sku(sku_f, "30020203"))["key"],     unique_only(prep_sku(sku_f, "30020203"))["val"]))
+        sku_all_dict  = dict(zip(unique_only(prep_sku(sku_map, "ASI_CRM_Mapping_Cust_Code__c"))["key"],   unique_only(prep_sku(sku_map, "ASI_CRM_Mapping_Cust_Code__c"))["val"]))
 
         # ---------------------------
         # 4) Apply mapping
         #     CHANGE: if no mapping, leave CustomerCode blank (not original)
         # ---------------------------
-        jde_from_filtered = df_all["CustomerCode_norm"].map(cust_f_dict)
+        jde_from_filtered = (df_all["CustomerCode_norm"] + '|30020203').map(cust_f_dict)
         jde_from_global   = df_all["CustomerCode_norm"].map(cust_all_dict)
         mapped_jde        = jde_from_filtered.combine_first(jde_from_global)
         df_all["CustomerCode_final"] = mapped_jde.fillna("")  # blank when unmapped
 
-        prt_from_filtered = df_all["ProductCode_norm"].map(sku_f_dict)
+        prt_from_filtered = (df_all["ProductCode_norm"] + '|30020203').map(sku_f_dict)
         prt_from_global   = df_all["ProductCode_norm"].map(sku_all_dict)
         df_all["PRT_Product_Code"] = prt_from_filtered.fillna(prt_from_global)  # leave NaN if missing
 
@@ -2525,17 +2715,27 @@ elif transformation_choice == "30020216 久悅貿易":
         cust_f = cust_map[cust_map["ASI_CRM_Mapping_Cust_No__c"].astype(str).str.replace(r"\.0$", "", regex=True) == "30020216"].copy()
         sku_f  = sku_map[ sku_map["ASI_CRM_Mapping_Cust_Code__c"].astype(str).str.replace(r"\.0$", "", regex=True) == "30020216"].copy()
 
-        def prep_cust(dfm: pd.DataFrame) -> pd.DataFrame:
+        def prep_cust(dfm: pd.DataFrame, group=None) -> pd.DataFrame:
             out = dfm.copy()
             out["key"] = (out["ASI_CRM_Offtake_Customer_No__c"].astype(str)
                           .str.strip().str.upper().str.replace(r"\.0$", "", regex=True)
                           .str.replace(" ", "", regex=False))
+            if group:
+                if isinstance(group, str) and group in dfm.columns:
+                    out["key"] = out["key"] + '|' + out[group].astype(str)
+                else:
+                    out["key"] = out["key"] + '|' + str(group)
             out["val"] = out["ASI_CRM_JDE_Cust_No_Formula__c"].astype(str).str.strip()
             return out[["key","val"]]
 
-        def prep_sku(dfm: pd.DataFrame) -> pd.DataFrame:
+        def prep_sku(dfm: pd.DataFrame, group=None) -> pd.DataFrame:
             out = dfm.copy()
             out["key"] = out["ASI_CRM_Offtake_Product__c"].astype(str).str.strip().str.upper()
+            if group:
+                if isinstance(group, str) and group in dfm.columns:
+                    out["key"] = out["key"] + '|' + out[group].astype(str)
+                else:
+                    out["key"] = out["key"] + '|' + str(group)
             out["val"] = out["ASI_CRM_SKU_Code__c"].astype(str).str.strip()
             return out[["key","val"]]
 
@@ -2544,19 +2744,19 @@ elif transformation_choice == "30020216 久悅貿易":
             uniq = g[g["n"] == 1]["key"]
             return kv[kv["key"].isin(uniq)].drop_duplicates(subset=["key"], keep="first")
 
-        cust_f_dict   = dict(zip(unique_only(prep_cust(cust_f))["key"],   unique_only(prep_cust(cust_f))["val"]))
-        cust_all_dict = dict(zip(unique_only(prep_cust(cust_map))["key"], unique_only(prep_cust(cust_map))["val"]))
-        sku_f_dict    = dict(zip(unique_only(prep_sku(sku_f))["key"],     unique_only(prep_sku(sku_f))["val"]))
-        sku_all_dict  = dict(zip(unique_only(prep_sku(sku_map))["key"],   unique_only(prep_sku(sku_map))["val"]))
+        cust_f_dict   = dict(zip(unique_only(prep_cust(cust_f, "30020216"))["key"],   unique_only(prep_cust(cust_f, "30020216"))["val"]))
+        cust_all_dict = dict(zip(unique_only(prep_cust(cust_map, "ASI_CRM_Mapping_Cust_No__c"))["key"], unique_only(prep_cust(cust_map, "ASI_CRM_Mapping_Cust_No__c"))["val"]))
+        sku_f_dict    = dict(zip(unique_only(prep_sku(sku_f, "30020216"))["key"],     unique_only(prep_sku(sku_f, "30020216"))["val"]))
+        sku_all_dict  = dict(zip(unique_only(prep_sku(sku_map, "ASI_CRM_Mapping_Cust_Code__c"))["key"],   unique_only(prep_sku(sku_map, "ASI_CRM_Mapping_Cust_Code__c"))["val"]))
 
         # ---------- 6) Apply mapping
         # Leave CustomerCode BLANK when unmapped (per your requirement)
         # ----------
-        jde_from_filtered = df_rec["CustomerCode_norm"].map(cust_f_dict)
+        jde_from_filtered = (df_rec["CustomerCode_norm"] + '|30020216').map(cust_f_dict)
         jde_from_global   = df_rec["CustomerCode_norm"].map(cust_all_dict)
         df_rec["CustomerCode_final"] = jde_from_filtered.combine_first(jde_from_global).fillna("")
 
-        prt_from_filtered = df_rec["ProductCode_norm"].map(sku_f_dict)
+        prt_from_filtered = (df_rec["ProductCode_norm"] + '|30020216').map(sku_f_dict)
         prt_from_global   = df_rec["ProductCode_norm"].map(sku_all_dict)
         df_rec["PRT_Product_Code"] = prt_from_filtered.fillna(prt_from_global)  # may stay NaN
 
@@ -3009,10 +3209,14 @@ elif transformation_choice == "30010008 利多吉":
         def norm_code(s: str) -> str:
             return str(s).strip().upper().replace(" ", "").replace(".0", "")
 
-        def unique_only_map(df, key_col, val_col, norm=lambda x: x):
+        def unique_only_map(df, key_col, val_col, norm=lambda x: x, group_col=None):
             """Build key->val map keeping only keys with a single unique value."""
-            tmp = df[[key_col, val_col]].dropna().copy()
-            tmp["key"] = tmp[key_col].astype(str).map(norm)
+            if group_col:
+                tmp = df[[key_col, val_col, group_col]].dropna().copy()
+                tmp["key"] = tmp[key_col].astype(str).map(norm) + '|' + tmp[group_col].astype(str)
+            else:
+                tmp = df[[key_col, val_col]].dropna().copy()
+                tmp["key"] = tmp[key_col].astype(str).map(norm)
             tmp["val"] = tmp[val_col].astype(str).str.strip()
             counts = tmp.groupby("key")["val"].nunique().reset_index(name="n")
             uniq = set(counts[counts["n"] == 1]["key"])
@@ -3168,29 +3372,47 @@ elif transformation_choice == "30010008 利多吉":
         group_keys = ["Date", "DocumentNo", "CustomerCode_ext", "CustomerName", "ProductCode", "ProductName"]
         df_all = df_all.groupby(group_keys, as_index=False)["Quantity"].sum()
 
-        # =============== 2) Mappings (unique-only; prefer filtered 30010008, then global) ===============
+        # =============== 2) Mappings using Composite Keys ===============
         cust_map = pd.read_excel(mapping_file, sheet_name="Customer Mapping", dtype=str, engine=map_eng)
         sku_map  = pd.read_excel(mapping_file, sheet_name="SKU Mapping", dtype=str, engine=map_eng)
 
         # Customer mapping
         cust_map["ASI_CRM_Mapping_Cust_No__c"] = cust_map["ASI_CRM_Mapping_Cust_No__c"].astype(str).str.replace(r"\.0$", "", regex=True)
-        cust_f = cust_map[cust_map["ASI_CRM_Mapping_Cust_No__c"] == "30010008"].copy()
-        m_cust_f = unique_only_map(cust_f, "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", norm_code)
-        m_cust_g = unique_only_map(cust_map, "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", norm_code)
+        df_customer_mapping = cust_map[cust_map["ASI_CRM_Mapping_Cust_No__c"] == "30010008"].copy()
+        df_customer_mapping['CompositeKey'] = df_customer_mapping['ASI_CRM_Offtake_Customer_No__c'].astype(str) + '|' + df_customer_mapping['ASI_CRM_Mapping_Cust_No__c'].astype(str)
+        df_customer_mapping = df_customer_mapping.drop_duplicates(subset=['CompositeKey'])
+
+        df_all["CustomerCode_norm"] = df_all["CustomerCode_ext"].map(norm_code)
+        df_all['Cust_CompositeKey'] = df_all['CustomerCode_norm'].astype(str) + '|' + '30010008'
+
+        df_all = df_all.merge(
+            df_customer_mapping[['CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c']],
+            left_on='Cust_CompositeKey',
+            right_on='CompositeKey',
+            how='left'
+        )
+
+        df_all["CustomerCode"] = df_all["ASI_CRM_JDE_Cust_No_Formula__c"].fillna("")
+        df_all.drop(columns=['Cust_CompositeKey', 'CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c'], inplace=True)
 
         # SKU mapping
         sku_map["ASI_CRM_Mapping_Cust_Code__c"] = sku_map["ASI_CRM_Mapping_Cust_Code__c"].astype(str).str.replace(r"\.0$", "", regex=True)
-        sku_f = sku_map[sku_map["ASI_CRM_Mapping_Cust_Code__c"] == "30010008"].copy()
-        m_sku_f = unique_only_map(sku_f, "ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c", lambda s: str(s).strip().upper())
-        m_sku_g = unique_only_map(sku_map, "ASI_CRM_Offtake_Product__c", "ASI_CRM_SKU_Code__c", lambda s: str(s).strip().upper())
-
-        df_all["CustomerCode_norm"] = df_all["CustomerCode_ext"].map(norm_code)
-        df_all["CustomerCode"] = df_all["CustomerCode_norm"].map(m_cust_f).fillna(df_all["CustomerCode_norm"].map(m_cust_g))
-        # Non-forced: if unmapped, leave blank (don't keep external)
-        df_all["CustomerCode"] = df_all["CustomerCode"].fillna("")
+        df_sku_mapping = sku_map[sku_map["ASI_CRM_Mapping_Cust_Code__c"] == "30010008"].copy()
+        df_sku_mapping['CompositeKey'] = df_sku_mapping['ASI_CRM_Offtake_Product__c'].astype(str) + '|' + df_sku_mapping['ASI_CRM_Mapping_Cust_Code__c'].astype(str)
+        df_sku_mapping = df_sku_mapping.drop_duplicates(subset=['CompositeKey'])
 
         df_all["ProductCode_norm"] = df_all["ProductCode"].str.strip().str.upper()
-        df_all["PRT_Product_Code"] = df_all["ProductCode_norm"].map(m_sku_f).fillna(df_all["ProductCode_norm"].map(m_sku_g))
+        df_all['Prod_CompositeKey'] = df_all['ProductCode_norm'].astype(str) + '|' + '30010008'
+
+        df_all = df_all.merge(
+            df_sku_mapping[['CompositeKey', 'ASI_CRM_SKU_Code__c']],
+            left_on='Prod_CompositeKey',
+            right_on='CompositeKey',
+            how='left'
+        )
+
+        df_all["PRT_Product_Code"] = df_all["ASI_CRM_SKU_Code__c"]
+        df_all.drop(columns=['Prod_CompositeKey', 'CompositeKey', 'ASI_CRM_SKU_Code__c'], inplace=True)
 
         # =============== 3) Assemble final output (preserve order) ===============
         df_all = df_all.sort_values(["Date", "DocumentNo"]).reset_index(drop=True)
@@ -3364,18 +3586,20 @@ elif transformation_choice == "30010154 亨玖":
         cust_f = cust_map[cust_map["ASI_CRM_Mapping_Cust_No__c"] == "30010154"].copy()
         sku_f  = sku_map[sku_map["ASI_CRM_Mapping_Cust_Code__c"] == "30010154"].copy()
 
-        cust_f_map = unique_only_map(cust_f,  "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", norm_code)
-        cust_g_map = unique_only_map(cust_map,"ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", norm_code)
-        sku_f_map  = unique_only_map(sku_f,   "ASI_CRM_Offtake_Product__c",     "ASI_CRM_SKU_Code__c",           norm_sku)
-        sku_g_map  = unique_only_map(sku_map, "ASI_CRM_Offtake_Product__c",     "ASI_CRM_SKU_Code__c",           norm_sku)
+        cust_f_map = unique_only_map(cust_f,  "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", norm_code, "ASI_CRM_Mapping_Cust_No__c")
+        cust_g_map = unique_only_map(cust_map,"ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", norm_code, "ASI_CRM_Mapping_Cust_No__c")
+        sku_f_map  = unique_only_map(sku_f,   "ASI_CRM_Offtake_Product__c",     "ASI_CRM_SKU_Code__c",           norm_sku, "ASI_CRM_Mapping_Cust_Code__c")
+        sku_g_map  = unique_only_map(sku_map, "ASI_CRM_Offtake_Product__c",     "ASI_CRM_SKU_Code__c",           norm_sku, "ASI_CRM_Mapping_Cust_Code__c")
 
         df_all["CustomerCode_norm"] = df_all["CustomerCode_ext"].map(norm_code)
-        df_all["CustomerCode"] = df_all["CustomerCode_norm"].map(cust_f_map).fillna(
-                                  df_all["CustomerCode_norm"].map(cust_g_map)).fillna("")  # leave blank if unmapped
+        df_all["Cust_CompositeKey"] = df_all["CustomerCode_norm"] + '|' + '30010154'
+        df_all["CustomerCode"] = df_all["Cust_CompositeKey"].map(cust_f_map).fillna(
+                                  df_all["Cust_CompositeKey"].map(cust_g_map)).fillna("")  # leave blank if unmapped
 
         df_all["ProductCode_norm"] = df_all["ProductCode"].map(norm_sku)
-        df_all["PRT_Product_Code"] = df_all["ProductCode_norm"].map(sku_f_map).fillna(
-                                      df_all["ProductCode_norm"].map(sku_g_map)).fillna("")
+        df_all["Prod_CompositeKey"] = df_all["ProductCode_norm"] + '|' + '30010154'
+        df_all["PRT_Product_Code"] = df_all["Prod_CompositeKey"].map(sku_f_map).fillna(
+                                      df_all["Prod_CompositeKey"].map(sku_g_map)).fillna("")
 
         # -------- 3) Assemble final + aggregate duplicates --------
         final_fixed = pd.DataFrame({
@@ -3524,28 +3748,48 @@ elif transformation_choice == "30010185 瑞星翰德(夜點)":
 
         df_all = pd.concat(frames, ignore_index=True)
 
-        # -------- 2) Mappings (unique-only; prefer filtered 30010185, then global) --------
+        # -------- 2) Mappings using Composite Keys --------
         cust_map = pd.read_excel(mapping_file, sheet_name="Customer Mapping", dtype=str, engine=map_eng)
         sku_map  = pd.read_excel(mapping_file, sheet_name="SKU Mapping",    dtype=str, engine=map_eng)
 
         cust_map["ASI_CRM_Mapping_Cust_No__c"]    = cust_map["ASI_CRM_Mapping_Cust_No__c"].astype(str).str.replace(r"\.0$", "", regex=True)
         sku_map["ASI_CRM_Mapping_Cust_Code__c"]  = sku_map["ASI_CRM_Mapping_Cust_Code__c"].astype(str).str.replace(r"\.0$", "", regex=True)
 
-        cust_f = cust_map[cust_map["ASI_CRM_Mapping_Cust_No__c"] == "30010185"].copy()
-        sku_f  = sku_map[sku_map["ASI_CRM_Mapping_Cust_Code__c"] == "30010185"].copy()
-
-        m_cust_f = unique_only_map(cust_f,  "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", norm_code)
-        m_cust_g = unique_only_map(cust_map,"ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", norm_code)
-        m_sku_f  = unique_only_map(sku_f,   "ASI_CRM_Offtake_Product__c",     "ASI_CRM_SKU_Code__c",           norm_sku)
-        m_sku_g  = unique_only_map(sku_map, "ASI_CRM_Offtake_Product__c",     "ASI_CRM_SKU_Code__c",           norm_sku)
+        # Customer mapping
+        df_customer_mapping = cust_map[cust_map["ASI_CRM_Mapping_Cust_No__c"] == "30010185"].copy()
+        df_customer_mapping['CompositeKey'] = df_customer_mapping['ASI_CRM_Offtake_Customer_No__c'].astype(str) + '|' + df_customer_mapping['ASI_CRM_Mapping_Cust_No__c'].astype(str)
+        df_customer_mapping = df_customer_mapping.drop_duplicates(subset=['CompositeKey'])
 
         df_all["CustomerCode_norm"] = df_all["CustomerCode_ext"].map(norm_code)
-        df_all["CustomerCode"] = df_all["CustomerCode_norm"].map(m_cust_f).fillna(
-                                  df_all["CustomerCode_norm"].map(m_cust_g)).fillna("")  # leave blank if unmapped
+        df_all['Cust_CompositeKey'] = df_all['CustomerCode_norm'].astype(str) + '|' + '30010185'
+
+        df_all = df_all.merge(
+            df_customer_mapping[['CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c']],
+            left_on='Cust_CompositeKey',
+            right_on='CompositeKey',
+            how='left'
+        )
+
+        df_all["CustomerCode"] = df_all["ASI_CRM_JDE_Cust_No_Formula__c"].fillna("")
+        df_all.drop(columns=['Cust_CompositeKey', 'CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c'], inplace=True)
+
+        # SKU mapping
+        df_sku_mapping = sku_map[sku_map["ASI_CRM_Mapping_Cust_Code__c"] == "30010185"].copy()
+        df_sku_mapping['CompositeKey'] = df_sku_mapping['ASI_CRM_Offtake_Product__c'].astype(str) + '|' + df_sku_mapping['ASI_CRM_Mapping_Cust_Code__c'].astype(str)
+        df_sku_mapping = df_sku_mapping.drop_duplicates(subset=['CompositeKey'])
 
         df_all["ProductCode_norm"] = df_all["ProductCode"].map(norm_sku)
-        df_all["PRT_Product_Code"] = df_all["ProductCode_norm"].map(m_sku_f).fillna(
-                                      df_all["ProductCode_norm"].map(m_sku_g)).fillna("")
+        df_all['Prod_CompositeKey'] = df_all['ProductCode_norm'].astype(str) + '|' + '30010185'
+
+        df_all = df_all.merge(
+            df_sku_mapping[['CompositeKey', 'ASI_CRM_SKU_Code__c']],
+            left_on='Prod_CompositeKey',
+            right_on='CompositeKey',
+            how='left'
+        )
+
+        df_all["PRT_Product_Code"] = df_all["ASI_CRM_SKU_Code__c"].fillna("")
+        df_all.drop(columns=['Prod_CompositeKey', 'CompositeKey', 'ASI_CRM_SKU_Code__c'], inplace=True)
 
         # -------- 3) Assemble final + aggregate duplicates --------
         final = pd.DataFrame({
@@ -3714,28 +3958,48 @@ elif transformation_choice == "30010316 大倉捷":
 
         df_all = pd.concat(frames, ignore_index=True)
 
-        # -------- 2) Mappings (unique-only; prefer 30010316, then global) --------
+        # -------- 2) Mappings using Composite Keys --------
         cust_map = pd.read_excel(mapping_file, sheet_name="Customer Mapping", dtype=str, engine=map_eng)
         sku_map  = pd.read_excel(mapping_file, sheet_name="SKU Mapping",    dtype=str, engine=map_eng)
 
         cust_map["ASI_CRM_Mapping_Cust_No__c"]   = cust_map["ASI_CRM_Mapping_Cust_No__c"].astype(str).str.replace(r"\.0$", "", regex=True)
         sku_map["ASI_CRM_Mapping_Cust_Code__c"] = sku_map["ASI_CRM_Mapping_Cust_Code__c"].astype(str).str.replace(r"\.0$", "", regex=True)
 
-        cust_f = cust_map[cust_map["ASI_CRM_Mapping_Cust_No__c"] == "30010316"].copy()
-        sku_f  = sku_map[sku_map["ASI_CRM_Mapping_Cust_Code__c"] == "30010316"].copy()
-
-        m_cust_f = unique_only_map(cust_f,  "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", norm_code)
-        m_cust_g = unique_only_map(cust_map,"ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", norm_code)
-        m_sku_f  = unique_only_map(sku_f,   "ASI_CRM_Offtake_Product__c",     "ASI_CRM_SKU_Code__c",           norm_sku)
-        m_sku_g  = unique_only_map(sku_map, "ASI_CRM_Offtake_Product__c",     "ASI_CRM_SKU_Code__c",           norm_sku)
+        # Customer mapping
+        df_customer_mapping = cust_map[cust_map["ASI_CRM_Mapping_Cust_No__c"] == "30010316"].copy()
+        df_customer_mapping['CompositeKey'] = df_customer_mapping['ASI_CRM_Offtake_Customer_No__c'].astype(str) + '|' + df_customer_mapping['ASI_CRM_Mapping_Cust_No__c'].astype(str)
+        df_customer_mapping = df_customer_mapping.drop_duplicates(subset=['CompositeKey'])
 
         df_all["CustomerCode_norm"] = df_all["CustomerCode_ext"].map(norm_code)
-        df_all["CustomerCode"] = df_all["CustomerCode_norm"].map(m_cust_f).fillna(
-                                  df_all["CustomerCode_norm"].map(m_cust_g)).fillna("")  # leave blank if unmapped
+        df_all['Cust_CompositeKey'] = df_all['CustomerCode_norm'].astype(str) + '|' + '30010316'
+
+        df_all = df_all.merge(
+            df_customer_mapping[['CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c']],
+            left_on='Cust_CompositeKey',
+            right_on='CompositeKey',
+            how='left'
+        )
+
+        df_all["CustomerCode"] = df_all["ASI_CRM_JDE_Cust_No_Formula__c"].fillna("")
+        df_all.drop(columns=['Cust_CompositeKey', 'CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c'], inplace=True)
+
+        # SKU mapping
+        df_sku_mapping = sku_map[sku_map["ASI_CRM_Mapping_Cust_Code__c"] == "30010316"].copy()
+        df_sku_mapping['CompositeKey'] = df_sku_mapping['ASI_CRM_Offtake_Product__c'].astype(str) + '|' + df_sku_mapping['ASI_CRM_Mapping_Cust_Code__c'].astype(str)
+        df_sku_mapping = df_sku_mapping.drop_duplicates(subset=['CompositeKey'])
 
         df_all["ProductCode_norm"] = df_all["ProductCode"].map(norm_sku)
-        df_all["PRT_Product_Code"] = df_all["ProductCode_norm"].map(m_sku_f).fillna(
-                                      df_all["ProductCode_norm"].map(m_sku_g)).fillna("")
+        df_all['Prod_CompositeKey'] = df_all['ProductCode_norm'].astype(str) + '|' + '30010316'
+
+        df_all = df_all.merge(
+            df_sku_mapping[['CompositeKey', 'ASI_CRM_SKU_Code__c']],
+            left_on='Prod_CompositeKey',
+            right_on='CompositeKey',
+            how='left'
+        )
+
+        df_all["PRT_Product_Code"] = df_all["ASI_CRM_SKU_Code__c"].fillna("")
+        df_all.drop(columns=['Prod_CompositeKey', 'CompositeKey', 'ASI_CRM_SKU_Code__c'], inplace=True)
 
         # -------- 3) Assemble final + aggregate duplicates --------
         final = pd.DataFrame({
@@ -3928,18 +4192,18 @@ elif transformation_choice == "30020076 酒國英豪":
         cust_f = cust_map[cust_map["ASI_CRM_Mapping_Cust_No__c"] == "30020076"].copy()
         sku_f  = sku_map[sku_map["ASI_CRM_Mapping_Cust_Code__c"] == "30020076"].copy()
 
-        m_cust_f = unique_only_map(cust_f,  "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", norm_code)
-        m_cust_g = unique_only_map(cust_map,"ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", norm_code)
-        m_sku_f  = unique_only_map(sku_f,   "ASI_CRM_Offtake_Product__c",     "ASI_CRM_SKU_Code__c",           norm_sku)
-        m_sku_g  = unique_only_map(sku_map, "ASI_CRM_Offtake_Product__c",     "ASI_CRM_SKU_Code__c",           norm_sku)
+        m_cust_f = unique_only_map(cust_f,  "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", norm_code, group_col="30020076")
+        m_cust_g = unique_only_map(cust_map,"ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", norm_code, group_col="ASI_CRM_Mapping_Cust_No__c")
+        m_sku_f  = unique_only_map(sku_f,   "ASI_CRM_Offtake_Product__c",     "ASI_CRM_SKU_Code__c",           norm_sku, group_col="30020076")
+        m_sku_g  = unique_only_map(sku_map, "ASI_CRM_Offtake_Product__c",     "ASI_CRM_SKU_Code__c",           norm_sku, group_col="ASI_CRM_Mapping_Cust_Code__c")
 
         df_m = raw_extracted.copy()
         df_m["CustomerCode_norm"] = df_m["CustomerCode_ext"].map(norm_code)
-        df_m["CustomerCode"] = df_m["CustomerCode_norm"].map(m_cust_f).fillna(
+        df_m["CustomerCode"] = (df_m["CustomerCode_norm"] + '|30020076').map(m_cust_f).fillna(
                                 df_m["CustomerCode_norm"].map(m_cust_g)).fillna("")   # leave blank if unmapped
 
         df_m["ProductCode_norm"] = df_m["ProductCode"].map(norm_sku)
-        df_m["PRT_Product_Code"] = df_m["ProductCode_norm"].map(m_sku_f).fillna(
+        df_m["PRT_Product_Code"] = (df_m["ProductCode_norm"] + '|30020076').map(m_sku_f).fillna(
                                     df_m["ProductCode_norm"].map(m_sku_g)).fillna("")
 
         # -------- 3) Assemble final + aggregate (keep DocNo in group to avoid merging invoices) --------
@@ -4141,19 +4405,19 @@ elif transformation_choice == "30030021 合歡 ON":
         cust_f = cust_map[cust_map["ASI_CRM_Mapping_Cust_No__c"] == "30030021"].copy()
         sku_f  = sku_map[sku_map["ASI_CRM_Mapping_Cust_Code__c"] == "30030021"].copy()
 
-        m_cust_f = unique_only_map(cust_f,  "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", norm_code)
-        m_cust_g = unique_only_map(cust_map,"ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", norm_code)
-        m_sku_f  = unique_only_map(sku_f,   "ASI_CRM_Offtake_Product__c",     "ASI_CRM_SKU_Code__c",            norm_sku)
-        m_sku_g  = unique_only_map(sku_map, "ASI_CRM_Offtake_Product__c",     "ASI_CRM_SKU_Code__c",            norm_sku)
+        m_cust_f = unique_only_map(cust_f,  "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", norm_code, group_col="30030021")
+        m_cust_g = unique_only_map(cust_map,"ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", norm_code, group_col="ASI_CRM_Mapping_Cust_No__c")
+        m_sku_f  = unique_only_map(sku_f,   "ASI_CRM_Offtake_Product__c",     "ASI_CRM_SKU_Code__c",            norm_sku, group_col="30030021")
+        m_sku_g  = unique_only_map(sku_map, "ASI_CRM_Offtake_Product__c",     "ASI_CRM_SKU_Code__c",            norm_sku, group_col="ASI_CRM_Mapping_Cust_Code__c")
 
         df_m = raw_extracted.copy()
         df_m["CustomerCode_norm"] = df_m["CustomerCode_ext"].map(norm_code)
-        df_m["CustomerCode"] = df_m["CustomerCode_norm"].map(m_cust_f).fillna(
+        df_m["CustomerCode"] = (df_m["CustomerCode_norm"] + '|30030021').map(m_cust_f).fillna(
                                 df_m["CustomerCode_norm"].map(m_cust_g)
                               ).fillna("")  # leave blank if unmapped (non-forced)
 
         df_m["ProductCode_norm"] = df_m["ProductCode"].map(norm_sku)
-        df_m["PRT_Product_Code"] = df_m["ProductCode_norm"].map(m_sku_f).fillna(
+        df_m["PRT_Product_Code"] = (df_m["ProductCode_norm"] + '|30030021').map(m_sku_f).fillna(
                                     df_m["ProductCode_norm"].map(m_sku_g)
                                   ).fillna("")
 
