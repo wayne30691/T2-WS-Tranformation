@@ -1103,9 +1103,9 @@ elif transformation_choice == "30020145 鏵錡":
         # Customer Mapping using Composite Key
         df_customer = dfs_mapping["Customer Mapping"]
         df_customer = df_customer[[
-            "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", "ASI_CRM_Mapping_Cust_No__c"
+            "ASI_CRM_SYS_Wholesaler_to_Outlet_Key__c", "ASI_CRM_JDE_Cust_No_Formula__c", "ASI_CRM_Mapping_Cust_No__c"
         ]]
-        df_customer['CompositeKey'] = df_customer['ASI_CRM_Offtake_Customer_No__c'].astype(str) + '|' + df_customer['ASI_CRM_Mapping_Cust_No__c'].astype(str)
+        df_customer['CompositeKey'] = df_customer['ASI_CRM_SYS_Wholesaler_to_Outlet_Key__c'].astype(str) + '|' + df_customer['ASI_CRM_Mapping_Cust_No__c'].astype(str)
         df_customer = df_customer.drop_duplicates(subset=['CompositeKey'])
 
         df_combined['Cust_CompositeKey'] = df_combined['Customer Code'].astype(str) + '|' + '30020145'
