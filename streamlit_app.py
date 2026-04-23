@@ -3212,8 +3212,13 @@ elif transformation_choice == "30010008 利多吉":
         def unique_only_map(df, key_col, val_col, norm=lambda x: x, group_col=None):
             """Build key->val map taking the first value for each key."""
             if group_col:
-                tmp = df[[key_col, val_col, group_col]].dropna().copy()
-                tmp["key"] = tmp[key_col].astype(str).map(norm) + '|' + tmp[group_col].astype(str)
+                # Check if group_col is a column name or a literal value
+                if group_col in df.columns:
+                    tmp = df[[key_col, val_col, group_col]].dropna().copy()
+                    tmp["key"] = tmp[key_col].astype(str).map(norm) + '|' + tmp[group_col].astype(str)
+                else:
+                    tmp = df[[key_col, val_col]].dropna().copy()
+                    tmp["key"] = tmp[key_col].astype(str).map(norm) + '|' + str(group_col)
             else:
                 tmp = df[[key_col, val_col]].dropna().copy()
                 tmp["key"] = tmp[key_col].astype(str).map(norm)
@@ -4082,8 +4087,13 @@ elif transformation_choice == "30020076 酒國英豪":
         def unique_only_map(df, key_col, val_col, normalize=lambda s: s, group_col=None):
             """Build key->val map taking the first value for each key."""
             if group_col:
-                tmp = df[[key_col, val_col, group_col]].dropna().copy()
-                tmp["key"] = tmp[key_col].astype(str).map(normalize) + "|" + tmp[group_col].astype(str)
+                # Check if group_col is a column name or a literal value
+                if group_col in df.columns:
+                    tmp = df[[key_col, val_col, group_col]].dropna().copy()
+                    tmp["key"] = tmp[key_col].astype(str).map(normalize) + "|" + tmp[group_col].astype(str)
+                else:
+                    tmp = df[[key_col, val_col]].dropna().copy()
+                    tmp["key"] = tmp[key_col].astype(str).map(normalize) + "|" + str(group_col)
             else:
                 tmp = df[[key_col, val_col]].dropna().copy()
                 tmp["key"] = tmp[key_col].astype(str).map(normalize)
@@ -4310,8 +4320,13 @@ elif transformation_choice == "30030021 合歡 ON":
         def unique_only_map(df, key_col, val_col, normalize=lambda s: s, group_col=None):
             """Build key->val map taking the first value for each key."""
             if group_col:
-                tmp = df[[key_col, val_col, group_col]].dropna().copy()
-                tmp["key"] = tmp[key_col].astype(str).map(normalize) + "|" + tmp[group_col].astype(str)
+                # Check if group_col is a column name or a literal value
+                if group_col in df.columns:
+                    tmp = df[[key_col, val_col, group_col]].dropna().copy()
+                    tmp["key"] = tmp[key_col].astype(str).map(normalize) + "|" + tmp[group_col].astype(str)
+                else:
+                    tmp = df[[key_col, val_col]].dropna().copy()
+                    tmp["key"] = tmp[key_col].astype(str).map(normalize) + "|" + str(group_col)
             else:
                 tmp = df[[key_col, val_col]].dropna().copy()
                 tmp["key"] = tmp[key_col].astype(str).map(normalize)
