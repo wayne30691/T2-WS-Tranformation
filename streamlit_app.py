@@ -3210,19 +3210,6 @@ elif transformation_choice == "30010008 利多吉":
             return str(s).strip().upper().replace(" ", "").replace(".0", "")
 
         def unique_only_map(df, key_col, val_col, norm=lambda x: x, group_col=None):
-            """Build key->val map keeping only keys with a single unique value."""
-            if group_col:
-                tmp = df[[key_col, val_col, group_col]].dropna().copy()
-                tmp["key"] = tmp[key_col].astype(str).map(norm) + '|' + tmp[group_col].astype(str)
-            else:
-                tmp = df[[key_col, val_col]].dropna().copy()
-                tmp["key"] = tmp[key_col].astype(str).map(norm)
-            tmp["val"] = tmp[val_col].astype(str).str.strip()
-            counts = tmp.groupby("key")["val"].nunique().reset_index(name="n")
-            uniq = set(counts[counts["n"] == 1]["key"])
-            tmp = tmp[tmp["key"].isin(uniq)].drop_duplicates(subset="key", keep="first")
-            return dict(zip(tmp["key"], tmp["val"]))
-
         # ---- header detection helpers (robust to slight shifts)
         def looks_like_header(cells):
             row = [str(c).strip() for c in cells]
@@ -3482,14 +3469,6 @@ elif transformation_choice == "30010154 亨玖":
             return None
 
         def unique_only_map(df, key_col, val_col, normalize=lambda s: s):
-            tmp = df[[key_col, val_col]].dropna().copy()
-            tmp["key"] = tmp[key_col].astype(str).map(normalize)
-            tmp["val"] = tmp[val_col].astype(str).str.strip()
-            counts = tmp.groupby("key")["val"].nunique().reset_index(name="n")
-            uniq = set(counts[counts["n"] == 1]["key"])
-            tmp = tmp[tmp["key"].isin(uniq)].drop_duplicates(subset="key", keep="first")
-            return dict(zip(tmp["key"], tmp["val"]))
-
         norm_code = lambda s: str(s).strip().upper().replace(" ", "").replace(".0", "")
         norm_sku  = lambda s: str(s).strip().upper()
 
@@ -3670,14 +3649,6 @@ elif transformation_choice == "30010185 瑞星翰德(夜點)":
             return None
 
         def unique_only_map(df, key_col, val_col, normalize=lambda s: s):
-            tmp = df[[key_col, val_col]].dropna().copy()
-            tmp["key"] = tmp[key_col].astype(str).map(normalize)
-            tmp["val"] = tmp[val_col].astype(str).str.strip()
-            counts = tmp.groupby("key")["val"].nunique().reset_index(name="n")
-            uniq = set(counts[counts["n"] == 1]["key"])
-            tmp = tmp[tmp["key"].isin(uniq)].drop_duplicates(subset="key", keep="first")
-            return dict(zip(tmp["key"], tmp["val"]))
-
         norm_code = lambda s: str(s).strip().upper().replace(" ", "").replace(".0", "")
         norm_sku  = lambda s: str(s).strip().upper()
 
@@ -3866,14 +3837,6 @@ elif transformation_choice == "30010316 大倉捷":
             return None
 
         def unique_only_map(df, key_col, val_col, normalize=lambda s: s):
-            tmp = df[[key_col, val_col]].dropna().copy()
-            tmp["key"] = tmp[key_col].astype(str).map(normalize)
-            tmp["val"] = tmp[val_col].astype(str).str.strip()
-            counts = tmp.groupby("key")["val"].nunique().reset_index(name="n")
-            uniq = set(counts[counts["n"] == 1]["key"])
-            tmp = tmp[tmp["key"].isin(uniq)].drop_duplicates(subset="key", keep="first")
-            return dict(zip(tmp["key"], tmp["val"]))
-
         norm_code = lambda s: str(s).strip().upper().replace(" ", "").replace(".0", "")
         norm_sku  = lambda s: str(s).strip().upper()
 
@@ -4088,15 +4051,6 @@ elif transformation_choice == "30020076 酒國英豪":
                 return ""
 
         def unique_only_map(df, key_col, val_col, normalize=lambda s: s, group_col=None):
-            """Only keep mappings where one input maps to exactly one output."""
-            tmp = df[[key_col, val_col]].dropna().copy()
-            tmp["key"] = tmp[key_col].astype(str).map(normalize)
-            tmp["val"] = tmp[val_col].astype(str).str.strip()
-            counts = tmp.groupby("key")["val"].nunique().reset_index(name="n")
-            uniq = set(counts[counts["n"] == 1]["key"])
-            tmp = tmp[tmp["key"].isin(uniq)].drop_duplicates(subset="key", keep="first")
-            return dict(zip(tmp["key"], tmp["val"]))
-
         norm_code = lambda s: str(s).strip().upper().replace(" ", "").replace(".0", "")
         norm_sku  = lambda s: str(s).strip().upper()
 
@@ -4314,15 +4268,6 @@ elif transformation_choice == "30030021 合歡 ON":
             return f"{y:04d}{int(m.group(2)):02d}{int(m.group(3)):02d}"
 
         def unique_only_map(df, key_col, val_col, normalize=lambda s: s, group_col=None):
-            """Only keep mappings where one input maps to exactly one output."""
-            tmp = df[[key_col, val_col]].dropna().copy()
-            tmp["key"] = tmp[key_col].astype(str).map(normalize)
-            tmp["val"] = tmp[val_col].astype(str).str.strip()
-            counts = tmp.groupby("key")["val"].nunique().reset_index(name="n")
-            uniq = set(counts[counts["n"] == 1]["key"])
-            tmp = tmp[tmp["key"].isin(uniq)].drop_duplicates(subset="key", keep="first")
-            return dict(zip(tmp["key"], tmp["val"]))
-
         norm_code = lambda s: str(s).strip().upper().replace(" ", "").replace(".0", "")
         norm_sku  = lambda s: str(s).strip().upper()
 
@@ -4527,14 +4472,13 @@ elif transformation_choice == "30030083 東瀛":
             return f"{y:04d}{int(m.group(2)):02d}{int(m.group(3)):02d}"
 
         def unique_only_map(df, key_col, val_col, normalize=lambda s: s):
-            """Only keep mappings where one input maps to exactly one output."""
+            """Build key->val map taking the first value for each key."""
             tmp = df[[key_col, val_col]].dropna().copy()
             tmp["key"] = tmp[key_col].astype(str).map(normalize)
             tmp["val"] = tmp[val_col].astype(str).str.strip()
-            counts = tmp.groupby("key")["val"].nunique().reset_index(name="n")
-            uniq = set(counts[counts["n"] == 1]["key"])
-            tmp = tmp[tmp["key"].isin(uniq)].drop_duplicates(subset="key", keep="first")
+            tmp = tmp.drop_duplicates(subset="key", keep="first")
             return dict(zip(tmp["key"], tmp["val"]))
+
 
         norm_code = lambda s: str(s).strip().upper().replace(" ", "").replace(".0", "")
         norm_sku  = lambda s: str(s).strip().upper()
@@ -4750,14 +4694,13 @@ elif transformation_choice == "30030084 華恩":
             return ""
 
         def unique_only_map(df, key_col, val_col, normalize=lambda s: s):
-            """Only keep mappings where one input maps to exactly one output."""
+            """Build key->val map taking the first value for each key."""
             tmp = df[[key_col, val_col]].dropna().copy()
             tmp["key"] = tmp[key_col].astype(str).map(normalize)
             tmp["val"] = tmp[val_col].astype(str).str.strip()
-            counts = tmp.groupby("key")["val"].nunique().reset_index(name="n")
-            uniq = set(counts[counts["n"] == 1]["key"])
-            tmp = tmp[tmp["key"].isin(uniq)].drop_duplicates(subset="key", keep="first")
+            tmp = tmp.drop_duplicates(subset="key", keep="first")
             return dict(zip(tmp["key"], tmp["val"]))
+
 
         norm_code = lambda s: str(s).strip().upper().replace(" ", "").replace(".0", "")
         norm_sku  = lambda s: str(s).strip().upper()
@@ -4995,14 +4938,13 @@ elif transformation_choice == "30030106 明輝":
             return f"{y:04d}{int(m.group(2)):02d}{int(m.group(3)):02d}"
 
         def unique_only_map(df, key_col, val_col, normalize=lambda s: s):
-            """Only keep mappings where one input maps to exactly one output."""
+            """Build key->val map taking the first value for each key."""
             tmp = df[[key_col, val_col]].dropna().copy()
             tmp["key"] = tmp[key_col].astype(str).map(normalize)
             tmp["val"] = tmp[val_col].astype(str).str.strip()
-            counts = tmp.groupby("key")["val"].nunique().reset_index(name="n")
-            uniq = set(counts[counts["n"] == 1]["key"])
-            tmp = tmp[tmp["key"].isin(uniq)].drop_duplicates(subset="key", keep="first")
+            tmp = tmp.drop_duplicates(subset="key", keep="first")
             return dict(zip(tmp["key"], tmp["val"]))
+
 
         norm_code = lambda s: str(s).strip().upper().replace(" ", "").replace(".0", "")
         norm_sku  = lambda s: str(s).strip().upper()
