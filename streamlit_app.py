@@ -3480,6 +3480,12 @@ elif transformation_choice == "30010154 亨玖":
             return None
 
         def unique_only_map(df, key_col, val_col, normalize=lambda s: s):
+            tmp = df[[key_col, val_col]].dropna().copy()
+            tmp["key"] = tmp[key_col].astype(str).map(normalize)
+            tmp["val"] = tmp[val_col].astype(str).str.strip()
+            tmp = tmp.drop_duplicates(subset="key", keep="first")
+            return dict(zip(tmp["key"], tmp["val"]))
+
         norm_code = lambda s: str(s).strip().upper().replace(" ", "").replace(".0", "")
         norm_sku  = lambda s: str(s).strip().upper()
 
@@ -3660,6 +3666,12 @@ elif transformation_choice == "30010185 瑞星翰德(夜點)":
             return None
 
         def unique_only_map(df, key_col, val_col, normalize=lambda s: s):
+            tmp = df[[key_col, val_col]].dropna().copy()
+            tmp["key"] = tmp[key_col].astype(str).map(normalize)
+            tmp["val"] = tmp[val_col].astype(str).str.strip()
+            tmp = tmp.drop_duplicates(subset="key", keep="first")
+            return dict(zip(tmp["key"], tmp["val"]))
+
         norm_code = lambda s: str(s).strip().upper().replace(" ", "").replace(".0", "")
         norm_sku  = lambda s: str(s).strip().upper()
 
@@ -3848,6 +3860,12 @@ elif transformation_choice == "30010316 大倉捷":
             return None
 
         def unique_only_map(df, key_col, val_col, normalize=lambda s: s):
+            tmp = df[[key_col, val_col]].dropna().copy()
+            tmp["key"] = tmp[key_col].astype(str).map(normalize)
+            tmp["val"] = tmp[val_col].astype(str).str.strip()
+            tmp = tmp.drop_duplicates(subset="key", keep="first")
+            return dict(zip(tmp["key"], tmp["val"]))
+
         norm_code = lambda s: str(s).strip().upper().replace(" ", "").replace(".0", "")
         norm_sku  = lambda s: str(s).strip().upper()
 
@@ -4062,6 +4080,17 @@ elif transformation_choice == "30020076 酒國英豪":
                 return ""
 
         def unique_only_map(df, key_col, val_col, normalize=lambda s: s, group_col=None):
+            """Build key->val map taking the first value for each key."""
+            if group_col:
+                tmp = df[[key_col, val_col, group_col]].dropna().copy()
+                tmp["key"] = tmp[key_col].astype(str).map(normalize) + "|" + tmp[group_col].astype(str)
+            else:
+                tmp = df[[key_col, val_col]].dropna().copy()
+                tmp["key"] = tmp[key_col].astype(str).map(normalize)
+            tmp["val"] = tmp[val_col].astype(str).str.strip()
+            tmp = tmp.drop_duplicates(subset="key", keep="first")
+            return dict(zip(tmp["key"], tmp["val"]))
+
         norm_code = lambda s: str(s).strip().upper().replace(" ", "").replace(".0", "")
         norm_sku  = lambda s: str(s).strip().upper()
 
@@ -4279,6 +4308,17 @@ elif transformation_choice == "30030021 合歡 ON":
             return f"{y:04d}{int(m.group(2)):02d}{int(m.group(3)):02d}"
 
         def unique_only_map(df, key_col, val_col, normalize=lambda s: s, group_col=None):
+            """Build key->val map taking the first value for each key."""
+            if group_col:
+                tmp = df[[key_col, val_col, group_col]].dropna().copy()
+                tmp["key"] = tmp[key_col].astype(str).map(normalize) + "|" + tmp[group_col].astype(str)
+            else:
+                tmp = df[[key_col, val_col]].dropna().copy()
+                tmp["key"] = tmp[key_col].astype(str).map(normalize)
+            tmp["val"] = tmp[val_col].astype(str).str.strip()
+            tmp = tmp.drop_duplicates(subset="key", keep="first")
+            return dict(zip(tmp["key"], tmp["val"]))
+
         norm_code = lambda s: str(s).strip().upper().replace(" ", "").replace(".0", "")
         norm_sku  = lambda s: str(s).strip().upper()
 
