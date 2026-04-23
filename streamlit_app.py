@@ -84,7 +84,7 @@ def _file_uploader_with_memory(label, *args, **kwargs):
 st.file_uploader = _file_uploader_with_memory
 
 # Streamlit app title
-st.title("📊 T2 WS Transformations (Test Environment)")
+st.title("📊 T2 WS Transformations")
 st.write("Upload an Excel file and choose the transformation format.")
 
 
