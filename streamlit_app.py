@@ -4087,7 +4087,7 @@ elif transformation_choice == "30020076 酒國英豪":
             except Exception:
                 return ""
 
-        def unique_only_map(df, key_col, val_col, normalize=lambda s: s):
+        def unique_only_map(df, key_col, val_col, normalize=lambda s: s, group_col=None):
             """Only keep mappings where one input maps to exactly one output."""
             tmp = df[[key_col, val_col]].dropna().copy()
             tmp["key"] = tmp[key_col].astype(str).map(normalize)
@@ -4313,7 +4313,7 @@ elif transformation_choice == "30030021 合歡 ON":
             y = int(m.group(1)) + 1911
             return f"{y:04d}{int(m.group(2)):02d}{int(m.group(3)):02d}"
 
-        def unique_only_map(df, key_col, val_col, normalize=lambda s: s):
+        def unique_only_map(df, key_col, val_col, normalize=lambda s: s, group_col=None):
             """Only keep mappings where one input maps to exactly one output."""
             tmp = df[[key_col, val_col]].dropna().copy()
             tmp["key"] = tmp[key_col].astype(str).map(normalize)
