@@ -1103,12 +1103,17 @@ elif transformation_choice == "30020145 鏵錡":
         # Customer Mapping using Composite Key
         df_customer = dfs_mapping["Customer Mapping"]
         df_customer = df_customer[[
-            "ASI_CRM_SYS_Wholesaler_to_Outlet_Key__c", "ASI_CRM_JDE_Cust_No_Formula__c", "ASI_CRM_Mapping_Cust_No__c"
+            "ASI_CRM_Offtake_Customer_No__c", "ASI_CRM_JDE_Cust_No_Formula__c", "ASI_CRM_Mapping_Cust_No__c"
         ]]
-        df_customer['CompositeKey'] = df_customer['ASI_CRM_SYS_Wholesaler_to_Outlet_Key__c'].astype(str) + '|' + df_customer['ASI_CRM_Mapping_Cust_No__c'].astype(str)
+        df_customer['CompositeKey'] = df_customer['ASI_CRM_Offtake_Customer_No__c'].astype(str) + '|' + df_customer['ASI_CRM_Mapping_Cust_No__c'].astype(str)
         df_customer = df_customer.drop_duplicates(subset=['CompositeKey'])
 
         df_combined['Cust_CompositeKey'] = df_combined['Customer Code'].astype(str) + '|' + '30020145'
+
+        # Debug: Show mapping keys and input keys
+        st.write("🔍 Debug Info:")
+        st.write("Mapping Customer Keys (first 10):", df_customer['CompositeKey'].head(10).tolist())
+        st.write("Input Customer Keys (first 10):", df_combined['Cust_CompositeKey'].head(10).tolist())
 
         df_combined = df_combined.merge(
             df_customer[['CompositeKey', 'ASI_CRM_JDE_Cust_No_Formula__c']],
@@ -1129,6 +1134,10 @@ elif transformation_choice == "30020145 鏵錡":
         df_sku = df_sku.drop_duplicates(subset=['CompositeKey'])
 
         df_combined['Prod_CompositeKey'] = df_combined['Product Code'].astype(str) + '|' + '30020145'
+
+        # Debug: Show SKU mapping keys and input keys
+        st.write("SKU Mapping Keys (first 10):", df_sku['CompositeKey'].head(10).tolist())
+        st.write("Input Product Keys (first 10):", df_combined['Prod_CompositeKey'].head(10).tolist())
 
         df_combined = df_combined.merge(
             df_sku[['CompositeKey', 'ASI_CRM_SKU_Code__c']],
