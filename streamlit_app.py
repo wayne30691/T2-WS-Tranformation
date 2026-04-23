@@ -71,7 +71,7 @@ def _file_uploader_with_memory(label, *args, **kwargs):
 st.file_uploader = _file_uploader_with_memory
 
 # Streamlit app title
-st.title("📊 T2 WS Transformations")
+st.title("📊 T2 WS Transformations (Test Environment)")
 st.write("Upload an Excel file and choose the transformation format.")
 
 
@@ -3210,6 +3210,17 @@ elif transformation_choice == "30010008 利多吉":
             return str(s).strip().upper().replace(" ", "").replace(".0", "")
 
         def unique_only_map(df, key_col, val_col, norm=lambda x: x, group_col=None):
+            """Build key->val map taking the first value for each key."""
+            if group_col:
+                tmp = df[[key_col, val_col, group_col]].dropna().copy()
+                tmp["key"] = tmp[key_col].astype(str).map(norm) + '|' + tmp[group_col].astype(str)
+            else:
+                tmp = df[[key_col, val_col]].dropna().copy()
+                tmp["key"] = tmp[key_col].astype(str).map(norm)
+            tmp["val"] = tmp[val_col].astype(str).str.strip()
+            tmp = tmp.drop_duplicates(subset="key", keep="first")
+            return dict(zip(tmp["key"], tmp["val"]))
+
         # ---- header detection helpers (robust to slight shifts)
         def looks_like_header(cells):
             row = [str(c).strip() for c in cells]
