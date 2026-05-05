@@ -207,9 +207,6 @@ elif transformation_choice == "30010203 宏酒樽 (日)":
             df_transformed = df_raw.iloc[:, [1, 2, 3, 4, 5, 6]].copy()
             df_transformed.columns = ["Date", "Outlet Code", "Outlet Name", "Product Code", "Product Name", "Number of Bottles"]
             
-            # Remove duplicate rows from raw data
-            df_transformed = df_transformed.drop_duplicates()
-            
             # Add fixed columns
             df_transformed.insert(0, "Column1", "INV")
             df_transformed.insert(1, "Column2", "U")
