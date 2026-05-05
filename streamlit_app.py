@@ -207,6 +207,9 @@ elif transformation_choice == "30010203 宏酒樽 (日)":
             df_transformed = df_raw.iloc[:, [1, 2, 3, 4, 5, 6]].copy()
             df_transformed.columns = ["Date", "Outlet Code", "Outlet Name", "Product Code", "Product Name", "Number of Bottles"]
             
+            # Remove duplicate rows from raw data
+            df_transformed = df_transformed.drop_duplicates()
+            
             # Add fixed columns
             df_transformed.insert(0, "Column1", "INV")
             df_transformed.insert(1, "Column2", "U")
@@ -226,6 +229,7 @@ elif transformation_choice == "30010203 宏酒樽 (日)":
             df_sku_mapping['Prod_CompositeKey'] = (
                 normalize_key(df_sku_mapping['ASI_CRM_Offtake_Product__c']) + '|' + normalize_key(df_sku_mapping['ASI_CRM_Mapping_Cust_Code__c'])
             )
+            df_sku_mapping = df_sku_mapping.drop_duplicates(subset='Prod_CompositeKey')
             
             df_transformed['Prod_CompositeKey'] = (
                 normalize_key(df_transformed['Product Code']) + '|' + '30010203'
