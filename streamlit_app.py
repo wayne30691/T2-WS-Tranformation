@@ -5606,10 +5606,15 @@ elif transformation_choice == "30020177 富為MM(甲揚)":
 
         def to_ymd(s):
             s = "" if s is None else str(s).strip()
-            m = re.match(r"^(\d{4})/(\d{2})/(\d{2})$", s)
-            if not m:
+            if not s:
                 return ""
-            return f"{int(m.group(1)):04d}{int(m.group(2)):02d}{int(m.group(3)):02d}"
+            try:
+                dt = pd.to_datetime(s, errors='coerce')
+                if pd.isna(dt):
+                    return ""
+                return dt.strftime("%Y%m%d")
+            except:
+                return ""
         df["Date"] = df["Date"].apply(to_ymd)
 
         def signed_qty(row):
