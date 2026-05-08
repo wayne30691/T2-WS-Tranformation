@@ -3496,9 +3496,18 @@ elif transformation_choice == "30010154 亨玖":
                         return f"{y:04d}{mth:02d}{last_day:02d}"
             return None
 
-        def unique_only_map(df, key_col, val_col, normalize=lambda s: s):
-            tmp = df[[key_col, val_col]].dropna().copy()
-            tmp["key"] = tmp[key_col].astype(str).map(normalize)
+        def unique_only_map(df, key_col, val_col, normalize=lambda s: s, group_col=None):
+            """Build key->val map taking the first value for each key."""
+            if group_col:
+                if group_col in df.columns:
+                    tmp = df[[key_col, val_col, group_col]].dropna().copy()
+                    tmp["key"] = tmp[key_col].astype(str).map(normalize) + '|' + tmp[group_col].astype(str)
+                else:
+                    tmp = df[[key_col, val_col]].dropna().copy()
+                    tmp["key"] = tmp[key_col].astype(str).map(normalize) + '|' + str(group_col)
+            else:
+                tmp = df[[key_col, val_col]].dropna().copy()
+                tmp["key"] = tmp[key_col].astype(str).map(normalize)
             tmp["val"] = tmp[val_col].astype(str).str.strip()
             tmp = tmp.drop_duplicates(subset="key", keep="first")
             return dict(zip(tmp["key"], tmp["val"]))
